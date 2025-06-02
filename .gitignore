@@ -1,0 +1,54 @@
+# ─── Python virtual environment ─────────────────────────────────────────────
+.venv/
+venv/
+ENV/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ─── Environment files ───────────────────────────────────────────────────────
+.env
+*.env
+
+# ─── Temporary folders ───────────────────────────────────────────────────────
+temp_statements/
+
+# ─── Database ────────────────────────────────────────────────────────────────
+transactions.db
+
+# ─── Python packaging ────────────────────────────────────────────────────────
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ─── macOS ───────────────────────────────────────────────────────────────────
+.DS_Store
+
+# ─── Editor/IDE ──────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ─── Jupyter Notebook checkpoints ────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ─── Logs and misc ──────────────────────────────────────────────────────────
+*.log
+*.sqlite3
+
+# ─── Coverage reports ────────────────────────────────────────────────────────
+htmlcov/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# ─── OS-specific files ───────────────────────────────────────────────────────
+Thumbs.db
+Desktop.ini
