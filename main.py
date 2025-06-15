@@ -1,22 +1,19 @@
-# main.py
-
 import os
 import json
 import sqlite3
-from datetime import datetime
 
 import pandas as pd
 import plotly.express as px
 import streamlit as st
 
-from pdf_parser import parse_pdf  # your PDF‐parsing module
+from monopoly_parse import parse_pdf
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 
 DB_FILE = "transactions.db"
 CATEGORY_FILE = "categories.json"
 
-st.set_page_config(page_title="Simple Finance App", page_icon="💰", layout="wide")
+st.set_page_config(page_title="WeiMeng's Finance App", page_icon="💰", layout="wide")
 
 
 # ─── Database Helpers ────────────────────────────────────────────────────────
@@ -25,28 +22,18 @@ st.set_page_config(page_title="Simple Finance App", page_icon="💰", layout="wi
 def init_db():
     conn = sqlite3.connect(DB_FILE)
     c = conn.cursor()
-    # Create the base table if it doesn’t exist (Date, Description, Amount only)
     c.execute(
         """
         CREATE TABLE IF NOT EXISTS transactions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             Date TEXT,
             Description TEXT,
-            Amount REAL
+            Amount REAL,
+            Source TEXT,
+            Currency TEXT
         )
         """
     )
-    # Check which columns currently exist
-    c.execute("PRAGMA table_info(transactions)")
-    cols = [row[1] for row in c.fetchall()]
-
-    # If "Source" is missing, add it
-    if "Source" not in cols:
-        c.execute("ALTER TABLE transactions ADD COLUMN Source TEXT")
-    # If "Currency" is missing, add it
-    if "Currency" not in cols:
-        c.execute("ALTER TABLE transactions ADD COLUMN Currency TEXT")
-
     conn.commit()
     conn.close()
 
@@ -76,15 +63,20 @@ def save_to_db(df: pd.DataFrame, source_name: str) -> int:
 
     to_append = []
     for _, row in df.iterrows():
-        currency = row.get("Currency", None)
-        key = (row["Date"], row["Description"], row["Amount"], currency, source_name)
+        key = (
+            row["Date"],
+            row["Description"],
+            row["Amount"],
+            row["Currency"],
+            source_name,
+        )
         if key not in existing_set:
             to_append.append(
                 {
                     "Date": row["Date"],
                     "Description": row["Description"],
                     "Amount": row["Amount"],
-                    "Currency": currency,
+                    "Currency": row["Currency"],
                     "Source": source_name,
                 }
             )
@@ -114,11 +106,8 @@ def load_from_db() -> pd.DataFrame:
 
 
 def init_categories():
-    if "categories" not in st.session_state:
-        st.session_state.categories = {"Uncategorized": []}
-    if os.path.exists(CATEGORY_FILE):
-        with open(CATEGORY_FILE, "r") as f:
-            st.session_state.categories = json.load(f)
+    with open(CATEGORY_FILE, "r") as f:
+        st.session_state.categories = json.load(f)
 
 
 def save_categories():
@@ -140,36 +129,6 @@ def categorize_transactions(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ─── Date Parsing Helper ────────────────────────────────────────────────────
-
-
-def parse_date(val) -> str | None:
-    """
-    Normalize a date string like "19 APR" into "YYYY-MM-DD". If that fails,
-    fall back to pandas.to_datetime. Return None if parsing cannot succeed.
-    """
-    s = str(val).strip()
-    parts = s.split()
-    if len(parts) == 2:
-        yr = datetime.now().year
-        today = datetime.now()
-        try:
-            dt = datetime.strptime(f"{s} {yr}", "%d %b %Y")
-            if dt > today:
-                # If “19 APR 2025” is in the future, assume it was last year
-                dt = dt.replace(year=yr - 1)
-            return dt.strftime("%Y-%m-%d")
-        except Exception:
-            return None
-    try:
-        dt = pd.to_datetime(s, errors="coerce")
-        if pd.isna(dt):
-            return None
-        return dt.strftime("%Y-%m-%d")
-    except Exception:
-        return None
-
-
 # ─── Main Application ───────────────────────────────────────────────────────
 
 
@@ -177,14 +136,12 @@ def main():
     init_db()
     init_categories()
 
-    st.title("Simple Finance Dashboard")
+    st.title("💰WeiMeng's Finance Dashboard")
     tab_dashboard, tab_raw = st.tabs(["Dashboard", "Raw Data"])
 
-    # ── Raw Data Tab ──────────────────────────────────────────────────────────
     with tab_raw:
         st.subheader("Upload & Manage Raw Transactions")
 
-        # Only accept PDF now
         uploaded_file = st.file_uploader(
             "Upload your credit card statement (PDF only)",
             type=["pdf"],
@@ -192,33 +149,20 @@ def main():
         )
 
         if uploaded_file:
-            # 1) Save uploaded PDF to a temp folder
             os.makedirs("temp_statements", exist_ok=True)
             temp_path = os.path.join("temp_statements", uploaded_file.name)
             with open(temp_path, "wb") as f:
                 f.write(uploaded_file.read())
 
-            source_name = os.path.basename(uploaded_file.name)
-
-            # ── NEW: Skip parsing if this PDF was already processed ───────────────
+            source_name = uploaded_file.name
             existing_sources = load_from_db()["Source"].dropna().unique().tolist()
             if source_name in existing_sources:
-                st.warning(
-                    f"You’ve already uploaded “{source_name}” before—skipping parse."
-                )
+                st.warning(f"You’ve already uploaded '{source_name}'—skipping parse.")
             else:
-                # 2) Parse the PDF via parse_pdf()
                 parsed_df = parse_pdf(temp_path)
-
-                # 3) If parsing produced no rows, show an error
                 if parsed_df.empty:
                     st.error("Unable to extract any transactions from that PDF.")
                 else:
-                    # 4) Normalize date strings into YYYY-MM-DD
-                    if "Date" in parsed_df.columns:
-                        parsed_df["Date"] = parsed_df["Date"].apply(parse_date)
-
-                    # 5) Save new rows into the database
                     added = save_to_db(parsed_df, source_name)
                     if added > 0:
                         st.success(
@@ -227,7 +171,6 @@ def main():
                     else:
                         st.info("No new transactions—duplicates were skipped.")
 
-        # ── Show Uploaded Files History ────────────────────────────────────────
         raw_df = load_from_db()
         raw_df = categorize_transactions(raw_df)
         if "Date" in raw_df.columns:
@@ -241,24 +184,7 @@ def main():
             else:
                 st.write("No files uploaded yet.")
 
-        # ── Manage Categories & Edit Transactions ───────────────────────────────
-        st.subheader("Manage Categories & Edit Raw Transactions")
-        new_cat = st.text_input("New Category Name", key="raw_new_cat")
-        if st.button("Add Category", key="raw_add_cat") and new_cat:
-            st.session_state.categories.setdefault(new_cat, [])
-            save_categories()
-
         if not raw_df.empty:
-            # Convert Date column for display
-            if "Date" in raw_df.columns:
-                raw_df["Date"] = pd.to_datetime(
-                    raw_df["Date"], format="%Y-%m-%d", errors="coerce"
-                )
-
-            # Re-apply categorization to reflect any new keywords
-            raw_df = categorize_transactions(raw_df)
-
-            # Columns to show in the editor
             cols = [
                 c
                 for c in [
@@ -271,34 +197,38 @@ def main():
                 ]
                 if c in raw_df.columns
             ]
-
             edited = st.data_editor(
                 raw_df[cols],
                 column_config={
-                    "Date": st.column_config.DateColumn(format="YYYY-MM-DD"),
-                    "Description": st.column_config.TextColumn(),
-                    "Amount": st.column_config.NumberColumn(format="%.2f"),
-                    "Currency": st.column_config.TextColumn(),
+                    "Date": st.column_config.DateColumn(
+                        format="YYYY-MM-DD", disabled=True
+                    ),
+                    "Description": st.column_config.TextColumn(disabled=True),
+                    "Amount": st.column_config.NumberColumn(
+                        format="%.2f", disabled=True
+                    ),
+                    "Currency": st.column_config.TextColumn(disabled=True),
                     "Category": st.column_config.SelectboxColumn(
                         options=list(st.session_state.categories.keys())
                     ),
-                    "Source": st.column_config.TextColumn(),
+                    "Source": st.column_config.TextColumn(disabled=True),
                 },
                 hide_index=True,
                 use_container_width=True,
                 key="raw_editor",
             )
-
             if st.button("Apply Changes to Raw", key="raw_apply_changes"):
                 for i, row in edited.iterrows():
                     old_cat = raw_df.at[i, "Category"]
-                    new_cat_sel = row["Category"]
+                    new_cat = row["Category"]
                     desc = row["Description"]
-                    if new_cat_sel != old_cat:
-                        st.session_state.categories[new_cat_sel].append(desc)
+                    if new_cat != old_cat:
+                        if desc not in st.session_state.categories.get(new_cat, []):
+                            st.session_state.categories.setdefault(new_cat, []).append(
+                                desc
+                            )
                 save_categories()
-                raw_df = categorize_transactions(raw_df)
-                st.session_state.expenses_df = raw_df.copy()
+                st.rerun()
         else:
             st.info("No transactions available to edit.")
 
@@ -338,21 +268,66 @@ def main():
             & (all_df["Date"] <= pd.to_datetime(end_date))
         ].copy()
 
+        # ── Metrics ─────────────────────────────────
+        st.markdown("---")
+        st.subheader("🎯 Key Metrics")
+        total_spend = filtered_df["Amount"].sum()
+        # 2) compute number of days in the selected range
+        #    (date_range is a tuple of two datetime.date objects)
+        period_days = (end_date - start_date).days + 1
+        avg_daily = total_spend / period_days if period_days > 0 else 0
+
+        # 3) find top‐spending category
+        cat_totals = filtered_df.groupby("Category")["Amount"].sum()
+        if not cat_totals.empty:
+            top_cat = cat_totals.idxmax()
+            top_amt = cat_totals.max()
+        else:
+            top_cat, top_amt = "—", 0.0
+
+        # 4) render three metrics side by side
+        m1, m2, m3 = st.columns(3)
+        m1.metric("Total Spent", f"SGD {total_spend:,.2f}", border=True)
+        m2.metric(
+            "Avg. Daily Spend",
+            f"SGD {avg_daily:,.2f}",
+            help=f"over {period_days} days",
+            border=True,
+        )
+        m3.metric("Top Category", top_cat, f"SGD {top_amt:,.2f}", border=True)
+
         # ── Transactions Table ────────────────────────────────────────────────
         st.markdown("---")
         st.subheader("🧾 Transactions")
+
+        categories = ["All"] + sorted(
+            filtered_df["Category"].dropna().unique().tolist()
+        )
+        selected_category = st.selectbox(
+            "Filter by Category",
+            categories,
+            index=0,
+            help="Show only transactions in this category",
+        )
+
+        if selected_category != "All":
+            df_to_show = filtered_df[filtered_df["Category"] == selected_category]
+        else:
+            df_to_show = filtered_df
+
         cols = [
             c
             for c in ["Date", "Description", "Amount", "Category", "Source"]
-            if c in filtered_df.columns
+            if c in df_to_show.columns
         ]
-        if not filtered_df.empty:
+        if not df_to_show.empty:
             st.dataframe(
-                filtered_df[cols].sort_values("Date"),
+                df_to_show[cols].sort_values("Date"),
                 use_container_width=True,
                 hide_index=True,
                 column_config={
-                    "Amount": st.column_config.NumberColumn(format="%.2f SGD")
+                    "Date": st.column_config.DateColumn(format="YYYY-MM-DD"),
+                    "Amount": st.column_config.NumberColumn(format="%.2f SGD"),
                 },
             )
         else:
@@ -363,12 +338,24 @@ def main():
         st.subheader("📂 Expense Summary")
         tot = filtered_df.groupby("Category")["Amount"].sum().reset_index()
         tot = tot.sort_values("Amount", ascending=False)
+        display_df = tot.copy()
+        display_df.loc[len(display_df)] = ["Total", display_df["Amount"].sum()]
+
+        def highlight_total(row):
+            if row.name == display_df.index[-1]:
+                return ["background-color: #e0f7fa; font-weight: bold;" for _ in row]
+            return ["" for _ in row]
+
+        styled = display_df.style.apply(highlight_total, axis=1).format(
+            {"Amount": "{:.2f} SGD"}
+        )
+
         st.dataframe(
-            tot,
+            styled,
             use_container_width=True,
             hide_index=True,
-            column_config={"Amount": st.column_config.NumberColumn(format="%.2f SGD")},
         )
+
         fig = px.pie(
             tot, values="Amount", names="Category", title="Expenses by Category"
         )
