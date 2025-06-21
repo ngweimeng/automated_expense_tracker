@@ -156,7 +156,7 @@ def main():
     tab_dashboard, tab_raw = st.tabs(["Dashboard", "Raw Data"])
 
     with tab_raw:
-        st.subheader("Upload & Manage Raw Transactions")
+        st.subheader("📤 Upload & Manage Raw Transactions")
 
         uploaded_file = st.file_uploader(
             "Upload your credit card statement (PDF only)",
@@ -215,7 +215,7 @@ def main():
             ]
 
             st.markdown("---")
-            st.subheader("Categorize/View Raw Transactions Data")
+            st.subheader("🗂️ Categorize/View Raw Transactions Data")
             st.text(
                 "Select a category for each transaction below. "
                 'Select "Apply Changes to Raw" to save your changes.'
