@@ -159,34 +159,40 @@ def main():
     with tab_raw:
         st.subheader("📤 Upload & Manage Raw Transactions")
 
-        uploaded_file = st.file_uploader(
-            "Upload your credit card statement (PDF only)",
-            type=["pdf"],
-            key="pdf_uploader",
-        )
+        # Password input
+        password = st.text_input("Enter password to upload PDF", type="password", key="pdf_password")
 
-        if uploaded_file:
-            os.makedirs("temp_statements", exist_ok=True)
-            temp_path = os.path.join("temp_statements", uploaded_file.name)
-            with open(temp_path, "wb") as f:
-                f.write(uploaded_file.read())
+        if password == "weimeng":
+            uploaded_file = st.file_uploader(
+                "Upload your credit card statement (PDF only)",
+                type=["pdf"],
+                key="pdf_uploader",
+            )
 
-            source_name = uploaded_file.name
-            existing_sources = load_from_db()["Source"].dropna().unique().tolist()
-            if source_name in existing_sources:
-                st.warning(f"You’ve already uploaded '{source_name}'—skipping parse.")
-            else:
-                parsed_df = parse_pdf(temp_path)
-                if parsed_df.empty:
-                    st.error("Unable to extract any transactions from that PDF.")
+            if uploaded_file:
+                os.makedirs("temp_statements", exist_ok=True)
+                temp_path = os.path.join("temp_statements", uploaded_file.name)
+                with open(temp_path, "wb") as f:
+                    f.write(uploaded_file.read())
+
+                source_name = uploaded_file.name
+                existing_sources = load_from_db()["Source"].dropna().unique().tolist()
+                if source_name in existing_sources:
+                    st.warning(f"You’ve already uploaded '{source_name}'—skipping parse.")
                 else:
-                    added = save_to_db(parsed_df, source_name)
-                    if added > 0:
-                        st.success(
-                            f"{added} new transactions added from {source_name}."
-                        )
+                    parsed_df = parse_pdf(temp_path)
+                    if parsed_df.empty:
+                        st.error("Unable to extract any transactions from that PDF.")
                     else:
-                        st.info("No new transactions—duplicates were skipped.")
+                        added = save_to_db(parsed_df, source_name)
+                        if added > 0:
+                            st.success(f"{added} new transactions added from {source_name}.")
+                        else:
+                            st.info("No new transactions—duplicates were skipped.")
+        else:
+            if password:  # Show error only if user typed something
+                st.error("❌ Incorrect password. Please try again.")
+
 
         raw_df = load_from_db()
         raw_df = categorize_transactions(raw_df)
