@@ -2,3 +2,4 @@ build-essential
 pkg-config
 libpoppler-cpp-dev
 poppler-utils
+clang
