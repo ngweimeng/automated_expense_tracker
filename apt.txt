@@ -1,5 +1,4 @@
-build-essential
 pkg-config
-libpoppler-cpp-dev
 poppler-utils
-clang
+libpoppler-cpp-dev
+g++
