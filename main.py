@@ -22,15 +22,16 @@ st.set_page_config(page_title="WeiMeng's Finance App", page_icon="💰", layout=
 
 
 # ─── Supabase Client ────────────────────────────────────────────────────────
- @st.cache_resource(show_spinner=False)
- def get_supabase() -> Client:
+@st.cache_resource(show_spinner=False)
+def get_supabase() -> Client:
     url = st.secrets["supabase"]["url"]
     key = st.secrets["supabase"]["key"]
     return create_client(url, key)
 
+
 ## if not using Streamlit secrets, uncomment the following lines:
-#@st.cache_resource(show_spinner=False)
-#def get_supabase() -> Client:
+# @st.cache_resource(show_spinner=False)
+# def get_supabase() -> Client:
 #    url = os.getenv("SUPABASE_URL")
 #    key = os.getenv("SUPABASE_KEY")
 #    if not url or not key:
