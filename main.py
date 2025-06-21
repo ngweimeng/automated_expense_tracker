@@ -1,5 +1,5 @@
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 import json
 from supabase import create_client, Client
 
@@ -11,7 +11,7 @@ from monopoly_parse import parse_pdf
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 
-load_dotenv()
+#load_dotenv()
 
 CATEGORY_FILE = "categories.json"
 
