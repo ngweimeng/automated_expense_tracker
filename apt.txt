@@ -1,4 +1,4 @@
-pkg-config
-poppler-utils
+build-essential
 libpoppler-cpp-dev
-g++
+pkg-config
+ocrmypdf
