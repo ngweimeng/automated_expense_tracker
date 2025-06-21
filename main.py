@@ -1,6 +1,7 @@
 import os
+from dotenv import load_dotenv
 import json
-import sqlite3
+from supabase import create_client, Client
 
 import pandas as pd
 import plotly.express as px
@@ -10,7 +11,8 @@ from monopoly_parse import parse_pdf
 
 # ─── Constants ──────────────────────────────────────────────────────────────
 
-DB_FILE = "transactions.db"
+load_dotenv()
+
 CATEGORY_FILE = "categories.json"
 
 st.set_page_config(page_title="WeiMeng's Finance App", page_icon="💰", layout="wide")
@@ -19,87 +21,102 @@ st.set_page_config(page_title="WeiMeng's Finance App", page_icon="💰", layout=
 # ─── Database Helpers ────────────────────────────────────────────────────────
 
 
-def init_db():
-    conn = sqlite3.connect(DB_FILE)
-    c = conn.cursor()
-    c.execute(
-        """
-        CREATE TABLE IF NOT EXISTS transactions (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            Date TEXT,
-            Description TEXT,
-            Amount REAL,
-            Source TEXT,
-            Currency TEXT
-        )
-        """
+# ─── Supabase Client ────────────────────────────────────────────────────────
+# @st.cache_resource(show_spinner=False)
+# def get_supabase() -> Client:
+#    url = st.secrets["supabase"]["url"]
+#    key = st.secrets["supabase"]["key"]
+#    return create_client(url, key)
+
+
+@st.cache_resource(show_spinner=False)
+def get_supabase() -> Client:
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_KEY")
+    if not url or not key:
+        st.error("Missing SUPABASE_URL / SUPABASE_KEY in environment")
+    return create_client(url, key)
+
+
+# ─── Load all transactions from Supabase ───────────────────────────────────
+def load_from_db() -> pd.DataFrame:
+    sb = get_supabase()
+    resp = (
+        sb.table("transactions")
+        .select("date, description, amount, currency, source")
+        .order("date")
+        .execute()
     )
-    conn.commit()
-    conn.close()
+    data = resp.data or []
+
+    # If no rows, return an empty DF with the right columns
+    cols = ["Date", "Description", "Amount", "Currency", "Source"]
+    if not data:
+        return pd.DataFrame(columns=cols)
+
+    # Build and rename
+    df = pd.DataFrame(data).rename(
+        columns={
+            "date": "Date",
+            "description": "Description",
+            "amount": "Amount",
+            "currency": "Currency",
+            "source": "Source",
+        }
+    )
+
+    # MAKE SURE we still have all expected columns
+    for c in cols:
+        if c not in df.columns:
+            df[c] = pd.NA
+
+    # Reorder (optional)
+    return df[cols]
 
 
+# ─── Save new rows (dedupe) to Supabase ────────────────────────────────────
 def save_to_db(df: pd.DataFrame, source_name: str) -> int:
-    """
-    Expects `df` to have columns ["Date","Description","Amount","Currency"].
-    Deduplicates based on (Date,Description,Amount,Currency,Source).
-    Returns the number of newly inserted rows.
-    """
-    conn = sqlite3.connect(DB_FILE)
-    existing = pd.read_sql_query(
-        "SELECT Date, Description, Amount, Currency, Source FROM transactions", conn
-    )
-    existing_set = set(
-        existing.apply(
-            lambda r: (
-                r["Date"],
-                r["Description"],
-                r["Amount"],
-                r["Currency"],
-                r["Source"],
-            ),
-            axis=1,
-        )
-    )
+    sb = get_supabase()
 
-    to_append = []
+    # 1) fetch existing keys (lower‐case)
+    resp = (
+        sb.table("transactions")
+        .select("date, description, amount, currency, source")
+        .execute()
+    )
+    existing = resp.data or []
+    existing_set = {
+        (r["date"], r["description"], float(r["amount"]), r["currency"], r["source"])
+        for r in existing
+    }
+
+    # 2) build insert list using lower‐case column names
+    to_insert = []
     for _, row in df.iterrows():
         key = (
             row["Date"],
             row["Description"],
-            row["Amount"],
+            float(row["Amount"]),
             row["Currency"],
             source_name,
         )
         if key not in existing_set:
-            to_append.append(
+            to_insert.append(
                 {
-                    "Date": row["Date"],
-                    "Description": row["Description"],
-                    "Amount": row["Amount"],
-                    "Currency": row["Currency"],
-                    "Source": source_name,
+                    "date": row["Date"],
+                    "description": row["Description"],
+                    "amount": row["Amount"],
+                    "currency": row["Currency"],
+                    "source": source_name,
                 }
             )
 
-    if not to_append:
-        conn.close()
+    if not to_insert:
         return 0
 
-    pd.DataFrame(to_append).to_sql(
-        "transactions", conn, if_exists="append", index=False
-    )
-    conn.close()
-    return len(to_append)
-
-
-def load_from_db() -> pd.DataFrame:
-    conn = sqlite3.connect(DB_FILE)
-    df = pd.read_sql_query(
-        "SELECT Date, Description, Amount, Currency, Source FROM transactions ORDER BY Date",
-        conn,
-    )
-    conn.close()
-    return df
+    # 3) bulk insert
+    sb.table("transactions").insert(to_insert).execute()
+    return len(to_insert)
 
 
 # ─── Category Helpers ────────────────────────────────────────────────────────
@@ -133,7 +150,6 @@ def categorize_transactions(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def main():
-    init_db()
     init_categories()
 
     st.title("💰WeiMeng's Finance Dashboard")
@@ -197,6 +213,13 @@ def main():
                 ]
                 if c in raw_df.columns
             ]
+
+            st.markdown("---")
+            st.subheader("Categorize/View Raw Transactions Data")
+            st.text(
+                "Select a category for each transaction below. "
+                'Select "Apply Changes to Raw" to save your changes.'
+            )
             edited = st.data_editor(
                 raw_df[cols],
                 column_config={

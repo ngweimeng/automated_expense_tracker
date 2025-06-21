@@ -16,5 +16,6 @@ dependencies = [
     "pypdf2>=3.0.1",
     "python-dotenv>=1.1.0",
     "streamlit>=1.45.1",
+    "supabase>=2.15.3",
     "tqdm>=4.67.1",
 ]
