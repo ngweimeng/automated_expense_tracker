@@ -33,7 +33,7 @@ min_data, max_data = valid.min().date(), valid.max().date()
 st.markdown(
     f"**Today:** {today}   \n"
     f"**Current Week:** {curr_week}   \n"
-    f"**Current Month:** {curr_month}. \n"
+    f"**Current Month:** {curr_month}   \n"
     f"**Data Availiable:** {min_data} to {max_data}."
 )
 
