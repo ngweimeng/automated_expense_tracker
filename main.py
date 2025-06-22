@@ -10,7 +10,7 @@ from monopoly_parse import parse_pdf
 CATEGORY_FILE = "categories.json"
 
 # ─── Streamlit page config ─────────────────────────────────────────────────
-st.set_page_config(page_title="WeiMeng's Finance App", page_icon="💰", layout="wide")
+st.set_page_config(page_title="WeiMeng's Budget Tracker", page_icon="💰", layout="wide", initial_sidebar_state="expanded")
 
 # ─── Database Helpers ───────────────────────────────────────────────────────
 @st.cache_resource(show_spinner=False)
@@ -285,7 +285,13 @@ def show_dashboard():
 def main():
     init_categories()
     st.sidebar.title("📂 Navigation")
-    page = st.sidebar.radio("Go to", ["Dashboard", "Settings"]);
+    page = st.sidebar.radio("Go to", ["Dashboard", "Settings"])
+
+    # Get in touch / Report Bugs
+    st.sidebar.markdown("---")
+    st.sidebar.subheader("Get in touch / report bugs")
+    st.sidebar.markdown("[GitHub: ngweimeng](https://github.com/ngweimeng)")
+    
     if page == "Dashboard":
         show_dashboard()
     else:
