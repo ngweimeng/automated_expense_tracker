@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from datetime import date
 from pandas.tseries.offsets import MonthEnd
 from utils import init_categories, load_from_db, categorize_transactions
 
@@ -23,6 +24,17 @@ if valid.empty:
 # Filters
 st.markdown("---")
 st.subheader("📊 Dashboard Filters")
+# Display current date, week, and month
+today = date.today()
+iso_year, iso_week, _ = today.isocalendar()
+curr_week = f"{iso_year}-W{iso_week:02d}"
+curr_month = today.strftime("%Y-%m")
+st.markdown(
+    f"**Today:** {today}  \\\\  \n"
+    f"**Current Week:** {curr_week}  \\\\  \n"
+    f"**Current Month:** {curr_month}"
+)
+
 filter_type = st.selectbox("Filter by period", ["Date Range", "Month", "Week", "Day"])
 
 if filter_type == "Date Range":
@@ -49,7 +61,6 @@ elif filter_type == "Week":
     selected = st.multiselect("Select week(s)", weeks, default=weeks)
     filtered = df[df["YearWeek"].isin(selected)]
     if selected:
-        # derive first and last week bounds
         first = selected[0]
         last = selected[-1]
         y1, w1 = first.split("-W")
@@ -120,19 +131,20 @@ elif agg_level == "Weekly":
         return f"{y}-W{str(w).zfill(2)} ({sd.strftime('%b %d')} – {ed.strftime('%b %d')})"
     week_info = (filtered[["ISOYear","WeekNum"]].drop_duplicates().sort_values(["ISOYear","WeekNum"]).reset_index(drop=True))
     week_info["Label"] = week_info.apply(lambda r: week_label(r["ISOYear"], r["WeekNum"]), axis=1)
-    weekly_totals = filtered.groupby(["ISOYear","WeekNum"])["Amount"].sum().reset_index()
+    weekly_totals = filtered.groupby(["ISOYear","WeekNum"])['Amount'].sum().reset_index()
     agg_df = weekly_totals.merge(week_info, on=["ISOYear","WeekNum"])[["Label","Amount"]]
 else:
     filtered["MonthLabel"] = filtered["Date"].dt.strftime("%B %Y")
-    agg_df = filtered.groupby("MonthLabel")["Amount"].sum().reset_index().rename(columns={"MonthLabel":"Label"})
+    agg_df = filtered.groupby("MonthLabel")['Amount'].sum().reset_index().rename(columns={"MonthLabel":"Label"})
 fig_time = px.line(agg_df, x="Label", y="Amount", title=f"{agg_level} Spending Trend", labels={"Label":agg_level, "Amount":"Amount (SGD)"}, markers=True)
+
 st.plotly_chart(fig_time, use_container_width=True)
 
 # High Expense Alerts
 st.markdown("---")
 st.subheader("🚨 High Expense Alerts")
 threshold = st.slider("Highlight transactions above this amount (SGD)", min_value=10.0, max_value=1000.0, value=200.0, step=10.0)
-high_df = filtered[filtered["Amount"] > threshold]
+high_df = filtered[filtered['Amount'] > threshold]
 cols = ["Date", "Description", "Amount", "Category", "Source"]
 if not high_df.empty:
     st.warning(f"Found {len(high_df)} transactions above ${threshold:.2f}")
