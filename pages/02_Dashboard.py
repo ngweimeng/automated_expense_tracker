@@ -32,7 +32,7 @@ curr_month = today.strftime("%Y-%m")
 min_data, max_data = valid.min().date(), valid.max().date()
 
 # Layout for info and control columns
-info_col, control_col = st.columns([1, 2])
+info_col, control_col = st.columns([1, 1])
 with info_col:
     st.markdown(
         f"**Today:** {today}   \n"
