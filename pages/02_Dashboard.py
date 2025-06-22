@@ -117,12 +117,13 @@ else:
 st.markdown("---")
 st.subheader("📂 Expense Summary")
 
-dataframe_col, piechart_col = st.columns([1, 1])
+piechart_col, dataframe_col = st.columns([1, 1])
 
 with dataframe_col:
     summary = filtered.groupby("Category")["Amount"].sum().reset_index().sort_values("Amount", ascending=False)
     summary.loc[len(summary)] = ["Total", summary["Amount"].sum()]
     st.dataframe(summary.style.format({"Amount":"{:.2f} SGD"}), use_container_width=True)
+    
 with piechart_col:
     fig = px.pie(summary.iloc[:-1], values="Amount", names="Category", title="Expenses by Category")
     st.plotly_chart(fig, use_container_width=True)
