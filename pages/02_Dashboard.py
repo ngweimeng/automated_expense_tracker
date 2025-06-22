@@ -67,24 +67,24 @@ st.subheader("📈 Spending Over Time")
 agg_level = st.selectbox("Aggregate by", ["Daily","Weekly","Monthly"], index=0)
 # daily
 if agg_level=="Daily":
-    agg_df = filtered_df.groupby("Date")["Amount"].sum().reset_index()
+    agg_df = filtered.groupby("Date")["Amount"].sum().reset_index()
     agg_df["Label"] = agg_df["Date"].dt.strftime("%Y-%m-%d")
 # weekly
 elif agg_level=="Weekly":
-    filtered_df["ISOYear"] = filtered_df["Date"].dt.isocalendar().year
-    filtered_df["WeekNum"] = filtered_df["Date"].dt.isocalendar().week
+    filtered["ISOYear"] = filtered["Date"].dt.isocalendar().year
+    filtered["WeekNum"] = filtered["Date"].dt.isocalendar().week
     def week_label(y,w):
         sd = pd.to_datetime(f"{y}-W{w}-1", format="%G-W%V-%u")
         ed = sd + pd.Timedelta(days=6)
         return f"{y}-W{str(w).zfill(2)} ({sd.strftime('%b %d')} – {ed.strftime('%b %d')})"
-    week_info = (filtered_df[["ISOYear","WeekNum"]].drop_duplicates().sort_values(["ISOYear","WeekNum"]).reset_index(drop=True))
+    week_info = (filtered[["ISOYear","WeekNum"]].drop_duplicates().sort_values(["ISOYear","WeekNum"]).reset_index(drop=True))
     week_info["Label"] = week_info.apply(lambda r: week_label(r["ISOYear"],r["WeekNum"]), axis=1)
-    weekly_totals = filtered_df.groupby(["ISOYear","WeekNum"])["Amount"].sum().reset_index()
+    weekly_totals = filtered.groupby(["ISOYear","WeekNum"])["Amount"].sum().reset_index()
     agg_df = weekly_totals.merge(week_info, on=["ISOYear","WeekNum"])[["Label","Amount"]]
 # monthly
 else:
-    filtered_df["MonthLabel"] = filtered_df["Date"].dt.strftime("%B %Y")
-    agg_df = filtered_df.groupby("MonthLabel")["Amount"].sum().reset_index().rename(columns={"MonthLabel":"Label"})
+    filtered["MonthLabel"] = filtered["Date"].dt.strftime("%B %Y")
+    agg_df = filtered.groupby("MonthLabel")["Amount"].sum().reset_index().rename(columns={"MonthLabel":"Label"})
 fig_time = px.line(agg_df, x="Label", y="Amount", title=f"{agg_level} Spending Trend", labels={"Label":agg_level, "Amount":"Amount (SGD)"}, markers=True)
 st.plotly_chart(fig_time, use_container_width=True)
 
@@ -92,7 +92,7 @@ st.plotly_chart(fig_time, use_container_width=True)
 st.markdown("---")
 st.subheader("🚨 High Expense Alerts")
 threshold = st.slider("Highlight transactions above this amount (SGD)", min_value=10.0, max_value=1000.0, value=200.0, step=10.0)
-high_df = filtered_df[filtered_df["Amount"]>threshold]
+high_df = filtered[filtered["Amount"] > threshold]
 if not high_df.empty:
     st.warning(f"Found {len(high_df)} transactions above ${threshold:.2f}")
     st.dataframe(high_df[cols], use_container_width=True, hide_index=True,
