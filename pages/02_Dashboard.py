@@ -93,6 +93,7 @@ st.markdown("---")
 st.subheader("🚨 High Expense Alerts")
 threshold = st.slider("Highlight transactions above this amount (SGD)", min_value=10.0, max_value=1000.0, value=200.0, step=10.0)
 high_df = filtered[filtered["Amount"] > threshold]
+cols = ["Date", "Description", "Amount", "Category", "Source"]
 if not high_df.empty:
     st.warning(f"Found {len(high_df)} transactions above ${threshold:.2f}")
     st.dataframe(high_df[cols], use_container_width=True, hide_index=True,
