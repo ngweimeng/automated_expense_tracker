@@ -37,9 +37,9 @@ avg = total/days if days>0 else 0
 cats = filtered.groupby("Category")["Amount"].sum()
 top_cat, top_amt = (cats.idxmax(), cats.max()) if not cats.empty else ("—", 0.0)
 c1, c2, c3 = st.columns(3)
-c1.metric("Total Spent", f"SGD {total:,.2f}")
-c2.metric("Avg. Daily Spend", f"SGD {avg:,.2f}", help=f"over {days} days")
-c3.metric("Top Category", top_cat, f"SGD {top_amt:,.2f}")
+c1.metric("Total Spent", f"SGD {total:,.2f}", border=True, help=f"over {days} days")
+c2.metric("Avg. Daily Spend", f"SGD {avg:,.2f}", border=True, help=f"over {days} days")
+c3.metric("Top Category", top_cat, f"SGD {top_amt:,.2f}", border=True, help="Category with highest spend")
 
 # Transactions table
 st.markdown("---")
