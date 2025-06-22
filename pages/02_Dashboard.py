@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from pandas.tseries.offsets import MonthEnd
 from utils import init_categories, load_from_db, categorize_transactions
 
 st.set_page_config(page_title="Dashboard", page_icon="📊")
@@ -22,17 +23,32 @@ if valid.empty:
 # Filters
 st.markdown("---")
 st.subheader("📊 Dashboard Filters")
-min_d, max_d = valid.min(), valid.max()
-start_d, end_d = st.date_input("Select time period", (min_d, max_d), min_d, max_d)
+filter_type = st.selectbox("Filter by", ["Date Range", "Month"])
 
-filtered = df[(df["Date"]>=pd.to_datetime(start_d)) & (df["Date"]<=pd.to_datetime(end_d))]
+if filter_type == "Date Range":
+    min_d, max_d = valid.min(), valid.max()
+    start_d, end_d = st.date_input("Select time period", (min_d, max_d), min_d, max_d)
+    filtered = df[(df["Date"] >= pd.to_datetime(start_d)) & (df["Date"] <= pd.to_datetime(end_d))]
+else:
+    # Allow users to pick by month
+    df["Month"] = df["Date"].dt.to_period("M").astype(str)
+    months = sorted(df["Month"].unique())
+    selected_months = st.multiselect("Select month(s)", months, default=months)
+    filtered = df[df["Month"].isin(selected_months)]
+    # Derive start and end dates for metrics
+    if selected_months:
+        first, last = min(selected_months), max(selected_months)
+        start_d = pd.to_datetime(f"{first}-01")
+        end_d = pd.to_datetime(f"{last}-01") + MonthEnd(1)
+    else:
+        start_d, end_d = valid.min(), valid.max()
 
 # Key metrics
 st.markdown("---")
 st.subheader("🎯 Key Metrics")
 total = filtered["Amount"].sum()
 days = (end_d - start_d).days + 1
-avg = total/days if days>0 else 0
+avg = total / days if days > 0 else 0
 
 cats = filtered.groupby("Category")["Amount"].sum()
 top_cat, top_amt = (cats.idxmax(), cats.max()) if not cats.empty else ("—", 0.0)
@@ -46,7 +62,7 @@ st.markdown("---")
 st.subheader("🧾 Transactions")
 options = ["All"] + sorted(filtered["Category"].unique().tolist())
 sel = st.selectbox("Filter by Category", options)
-show_df = filtered if sel=="All" else filtered[filtered["Category"]==sel]
+show_df = filtered if sel == "All" else filtered[filtered["Category"] == sel]
 if not show_df.empty:
     st.dataframe(show_df[["Date","Description","Amount","Category","Source"]].sort_values("Date"), use_container_width=True)
 else:
@@ -66,19 +82,19 @@ st.markdown("---")
 st.subheader("📈 Spending Over Time")
 agg_level = st.selectbox("Aggregate by", ["Daily","Weekly","Monthly"], index=0)
 # daily
-if agg_level=="Daily":
+if agg_level == "Daily":
     agg_df = filtered.groupby("Date")["Amount"].sum().reset_index()
     agg_df["Label"] = agg_df["Date"].dt.strftime("%Y-%m-%d")
 # weekly
-elif agg_level=="Weekly":
+elif agg_level == "Weekly":
     filtered["ISOYear"] = filtered["Date"].dt.isocalendar().year
     filtered["WeekNum"] = filtered["Date"].dt.isocalendar().week
-    def week_label(y,w):
+    def week_label(y, w):
         sd = pd.to_datetime(f"{y}-W{w}-1", format="%G-W%V-%u")
         ed = sd + pd.Timedelta(days=6)
         return f"{y}-W{str(w).zfill(2)} ({sd.strftime('%b %d')} – {ed.strftime('%b %d')})"
     week_info = (filtered[["ISOYear","WeekNum"]].drop_duplicates().sort_values(["ISOYear","WeekNum"]).reset_index(drop=True))
-    week_info["Label"] = week_info.apply(lambda r: week_label(r["ISOYear"],r["WeekNum"]), axis=1)
+    week_info["Label"] = week_info.apply(lambda r: week_label(r["ISOYear"], r["WeekNum"]), axis=1)
     weekly_totals = filtered.groupby(["ISOYear","WeekNum"])["Amount"].sum().reset_index()
     agg_df = weekly_totals.merge(week_info, on=["ISOYear","WeekNum"])[["Label","Amount"]]
 # monthly
