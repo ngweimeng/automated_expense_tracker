@@ -4,6 +4,9 @@ import plotly.express as px
 from utils import init_categories, load_from_db, categorize_transactions
 
 st.set_page_config(page_title="Dashboard", page_icon="📊")
+st.title("💰 WeiMeng's Budget Tracker")
+st.write("View spending patterns and key metrics here.")
+
 init_categories()
 
 df = load_from_db()
@@ -17,6 +20,7 @@ if valid.empty:
     st.stop()
 
 # Filters
+st.markdown("---")
 st.subheader("📊 Dashboard Filters")
 min_d, max_d = valid.min(), valid.max()
 start_d, end_d = st.date_input("Select time period", (min_d, max_d), min_d, max_d)

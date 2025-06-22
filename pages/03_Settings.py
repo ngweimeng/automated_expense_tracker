@@ -6,8 +6,12 @@ from monopoly_parse import parse_pdf
 
 
 st.set_page_config(page_title="Settings", page_icon="⚙️")
+st.title("💰 WeiMeng's Budget Tracker")
+st.write("Manage your budget categories and upload raw transaction data here.")
+
 init_categories()
 
+st.markdown("---")
 st.subheader("📤 Upload & Manage Raw Transactions")
 pw = st.text_input("Enter password to upload PDF", type="password")
 if pw=="weimeng":
