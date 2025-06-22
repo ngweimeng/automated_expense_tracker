@@ -1,4 +1,5 @@
 import os
+import json
 import pandas as pd
 import streamlit as st
 from utils import init_categories, load_from_db, save_to_db, categorize_transactions, save_categories
@@ -62,3 +63,20 @@ if not df.empty:
         st.experimental_rerun()
 else:
     st.info("No transactions available to edit.")
+
+# View categories.json
+st.markdown("---")
+st.subheader("📂 Current Categories File")
+try:
+    with open("categories.json", "r") as f:
+        categories = json.load(f)
+    st.json(categories)
+    # Optional: allow download
+    st.download_button(
+        "Download categories.json",
+        data=json.dumps(categories, indent=4),
+        file_name="categories.json",
+        mime="application/json"
+    )
+except FileNotFoundError:
+    st.error("categories.json not found. No categories to display.")
