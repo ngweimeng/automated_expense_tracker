@@ -12,7 +12,7 @@ st.write("A Streamlit app to upload, categorize, and visualize your personal exp
 st.markdown(
     """
 ---
-## Track. Analyze. Budget. ##
+## *Track. Analyze. Budget.* ##
 
 ### 🎯 Motivation
 I wanted an easy way to scan my credit card transactions without manually entering each one, since I tend to be lazy and often forget.
@@ -24,7 +24,7 @@ I wanted an easy way to scan my credit card transactions without manually enteri
    Explore summaries, trends over time, and high-spend alerts
 
 ---
-*Developed by WeiMeng*  
+*Developed by WeiMeng.*  
 This app is open source and free to use. Contributions are welcome!
 
 *Get in Touch:* [<img src='https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png' width='20'/> WeiMeng's GitHub](https://github.com/ngweimeng)
