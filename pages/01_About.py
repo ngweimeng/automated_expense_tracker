@@ -7,16 +7,12 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 st.title("💰 WeiMeng's Budget Tracker")
-# st.write("A Streamlit app to upload, categorize, and visualize your personal expenses.")
 
 st.markdown(
     """
 ## *Track. Analyze. Budget.* ##
 
-A Streamlit app to upload, categorize, and visualize your personal expenses.
-
 ---
-
 ### 🎯 Motivation
 I wanted an easy way to scan my credit card transactions without manually entering each one, since I tend to be lazy and often forget.
 
