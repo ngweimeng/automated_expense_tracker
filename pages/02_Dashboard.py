@@ -29,10 +29,12 @@ today = date.today()
 iso_year, iso_week, _ = today.isocalendar()
 curr_week = f"{iso_year}-W{iso_week:02d}"
 curr_month = today.strftime("%Y-%m")
+min_data, max_data = valid.min().date(), valid.max().date()
 st.markdown(
     f"**Today:** {today}   \n"
     f"**Current Week:** {curr_week}   \n"
-    f"**Current Month:** {curr_month}"
+    f"**Current Month:** {curr_month}. \n"
+    f"**Data Availiable:** {min_data} to {max_data}."
 )
 
 filter_type = st.selectbox("Filter by period", ["Date Range", "Month", "Week", "Day"])
