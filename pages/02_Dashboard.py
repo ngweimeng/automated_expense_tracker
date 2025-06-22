@@ -42,7 +42,7 @@ with info_col:
     )
 
 with control_col:
-    filter_type = st.selectbox("Filter by period", ["Date Range", "Month", "Week", "Day"])
+    filter_type = st.selectbox("Filter by period", ["Date Range", "Month", "Week", "Day"], index=1)
 
     if filter_type == "Date Range":
         min_d, max_d = valid.min(), valid.max()
