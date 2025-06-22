@@ -102,17 +102,6 @@ c1.metric("Total Spent", f"SGD {total:,.2f}", border=True, help=f"over {days} da
 c2.metric("Avg. Daily Spend", f"SGD {avg:,.2f}", border=True, help=f"over {days} days")
 c3.metric("Top Category", top_cat, f"SGD {top_amt:,.2f}", border=True, help="Category with highest spend")
 
-# Transactions table
-st.markdown("---")
-st.subheader("🧾 Transactions")
-options = ["All"] + sorted(filtered["Category"].unique().tolist())
-sel = st.selectbox("Filter by Category", options)
-show_df = filtered if sel == "All" else filtered[filtered["Category"] == sel]
-if not show_df.empty:
-    st.dataframe(show_df[["Date","Description","Amount","Category","Source"]].sort_values("Date"), use_container_width=True)
-else:
-    st.info("No transactions to display.")
-
 # Expense summary + pie
 st.markdown("---")
 st.subheader("📂 Expense Summary")
@@ -123,7 +112,7 @@ with dataframe_col:
     summary = filtered.groupby("Category")["Amount"].sum().reset_index().sort_values("Amount", ascending=False)
     summary.loc[len(summary)] = ["Total", summary["Amount"].sum()]
     st.dataframe(summary.style.format({"Amount":"{:.2f} SGD"}), use_container_width=True)
-    
+
 with piechart_col:
     fig = px.pie(summary.iloc[:-1], values="Amount", names="Category", title="Expenses by Category")
     st.plotly_chart(fig, use_container_width=True)
@@ -165,3 +154,14 @@ if not high_df.empty:
                  column_config={"Amount": st.column_config.NumberColumn(format="%.2f SGD")})
 else:
     st.success(f"No transactions exceed ${threshold:.2f}")
+
+# Transactions table
+st.markdown("---")
+st.subheader("🧾 Transactions")
+options = ["All"] + sorted(filtered["Category"].unique().tolist())
+sel = st.selectbox("Filter by Category", options)
+show_df = filtered if sel == "All" else filtered[filtered["Category"] == sel]
+if not show_df.empty:
+    st.dataframe(show_df[["Date","Description","Amount","Category","Source"]].sort_values("Date"), use_container_width=True)
+else:
+    st.info("No transactions to display.")
