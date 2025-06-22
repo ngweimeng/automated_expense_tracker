@@ -30,8 +30,8 @@ iso_year, iso_week, _ = today.isocalendar()
 curr_week = f"{iso_year}-W{iso_week:02d}"
 curr_month = today.strftime("%Y-%m")
 st.markdown(
-    f"**Today:** {today}  \\\\  "
-    f"**Current Week:** {curr_week}  \\\\  "
+    f"**Today:** {today}   \n"
+    f"**Current Week:** {curr_week}   \n"
     f"**Current Month:** {curr_month}"
 )
 
