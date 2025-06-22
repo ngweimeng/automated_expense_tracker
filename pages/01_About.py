@@ -12,8 +12,7 @@ st.write("A Streamlit app to upload, categorize, and visualize your personal exp
 st.markdown(
     """
 ---
-## Welcome to **WeiMeng's Budget Tracker** 💰
-**Track. Analyze. Budget.**
+*Track. Analyze. Budget.*
 
 ### 🔧 Get Started
 1. **Settings**  
@@ -27,10 +26,9 @@ st.markdown(
 - **Customizable** keyword categories  
 - **Interactive** charts & tables  
 
-### 🚀 Quick Links
-[GitHub Repository](https://github.com/ngweimeng)  
-
 ---
 *Developed by WeiMeng*  
+This app is open source and free to use. Contributions are welcome!
+Get in Touch: Github [Repository](https://github.com/ngweimeng)  
 """
 )
