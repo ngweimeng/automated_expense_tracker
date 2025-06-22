@@ -51,7 +51,7 @@ if not df.empty:
         column_config={
             "Category": st.column_config.SelectboxColumn(options=list(st.session_state.categories.keys()))
         },
-        hide_index=True, use_container_width=True, disabled=("Date","Amount","Currency","Source")
+        hide_index=True, use_container_width=True
     )
     if st.button("Apply Changes"):
         for idx, row in edited.iterrows():
