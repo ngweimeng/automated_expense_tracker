@@ -1,7 +1,9 @@
 import os
+import pandas as pd
 import streamlit as st
 from utils import init_categories, load_from_db, save_to_db, categorize_transactions, save_categories
 from monopoly_parse import parse_pdf
+
 
 st.set_page_config(page_title="Settings", page_icon="⚙️")
 init_categories()
