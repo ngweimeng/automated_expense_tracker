@@ -3,7 +3,7 @@ import streamlit as st
 st.set_page_config(
     page_title="WeiMeng's Budget Tracker",
     page_icon="💰",
-    layout="narrow",
+    layout="centered",
     initial_sidebar_state="expanded",
 )
 st.title("💰 WeiMeng's Budget Tracker")
