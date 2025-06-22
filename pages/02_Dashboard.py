@@ -23,23 +23,50 @@ if valid.empty:
 # Filters
 st.markdown("---")
 st.subheader("📊 Dashboard Filters")
-filter_type = st.selectbox("Filter by", ["Date Range", "Month"])
+filter_type = st.selectbox("Filter by period", ["Date Range", "Month", "Week", "Day"])
 
 if filter_type == "Date Range":
     min_d, max_d = valid.min(), valid.max()
     start_d, end_d = st.date_input("Select time period", (min_d, max_d), min_d, max_d)
     filtered = df[(df["Date"] >= pd.to_datetime(start_d)) & (df["Date"] <= pd.to_datetime(end_d))]
-else:
-    # Allow users to pick by month
+
+elif filter_type == "Month":
     df["Month"] = df["Date"].dt.to_period("M").astype(str)
     months = sorted(df["Month"].unique())
-    selected_months = st.multiselect("Select month(s)", months, default=months)
-    filtered = df[df["Month"].isin(selected_months)]
-    # Derive start and end dates for metrics
-    if selected_months:
-        first, last = min(selected_months), max(selected_months)
+    selected = st.multiselect("Select month(s)", months, default=months)
+    filtered = df[df["Month"].isin(selected)]
+    if selected:
+        first, last = min(selected), max(selected)
         start_d = pd.to_datetime(f"{first}-01")
         end_d = pd.to_datetime(f"{last}-01") + MonthEnd(1)
+    else:
+        start_d, end_d = valid.min(), valid.max()
+
+elif filter_type == "Week":
+    # ISO Year-Week format
+    df["YearWeek"] = df["Date"].dt.strftime("%G-W%V")
+    weeks = sorted(df["YearWeek"].unique())
+    selected = st.multiselect("Select week(s)", weeks, default=weeks)
+    filtered = df[df["YearWeek"].isin(selected)]
+    if selected:
+        # derive first and last week bounds
+        first = selected[0]
+        last = selected[-1]
+        y1, w1 = first.split("-W")
+        y2, w2 = last.split("-W")
+        start_d = pd.to_datetime(f"{y1}-W{w1}-1", format="%G-W%V-%u")
+        end_d = pd.to_datetime(f"{y2}-W{w2}-1", format="%G-W%V-%u") + pd.Timedelta(days=6)
+    else:
+        start_d, end_d = valid.min(), valid.max()
+
+else:  # Day filter
+    df["DayStr"] = df["Date"].dt.strftime("%Y-%m-%d")
+    days = sorted(df["DayStr"].unique())
+    selected = st.multiselect("Select day(s)", days, default=days)
+    filtered = df[df["DayStr"].isin(selected)]
+    if selected:
+        dates = pd.to_datetime(selected)
+        start_d, end_d = dates.min(), dates.max()
     else:
         start_d, end_d = valid.min(), valid.max()
 
@@ -81,11 +108,9 @@ st.plotly_chart(fig, use_container_width=True)
 st.markdown("---")
 st.subheader("📈 Spending Over Time")
 agg_level = st.selectbox("Aggregate by", ["Daily","Weekly","Monthly"], index=0)
-# daily
 if agg_level == "Daily":
     agg_df = filtered.groupby("Date")["Amount"].sum().reset_index()
     agg_df["Label"] = agg_df["Date"].dt.strftime("%Y-%m-%d")
-# weekly
 elif agg_level == "Weekly":
     filtered["ISOYear"] = filtered["Date"].dt.isocalendar().year
     filtered["WeekNum"] = filtered["Date"].dt.isocalendar().week
@@ -97,7 +122,6 @@ elif agg_level == "Weekly":
     week_info["Label"] = week_info.apply(lambda r: week_label(r["ISOYear"], r["WeekNum"]), axis=1)
     weekly_totals = filtered.groupby(["ISOYear","WeekNum"])["Amount"].sum().reset_index()
     agg_df = weekly_totals.merge(week_info, on=["ISOYear","WeekNum"])[["Label","Amount"]]
-# monthly
 else:
     filtered["MonthLabel"] = filtered["Date"].dt.strftime("%B %Y")
     agg_df = filtered.groupby("MonthLabel")["Amount"].sum().reset_index().rename(columns={"MonthLabel":"Label"})
@@ -113,6 +137,6 @@ cols = ["Date", "Description", "Amount", "Category", "Source"]
 if not high_df.empty:
     st.warning(f"Found {len(high_df)} transactions above ${threshold:.2f}")
     st.dataframe(high_df[cols], use_container_width=True, hide_index=True,
-                    column_config={"Amount": st.column_config.NumberColumn(format="%.2f SGD")})
+                 column_config={"Amount": st.column_config.NumberColumn(format="%.2f SGD")})
 else:
     st.success(f"No transactions exceed ${threshold:.2f}")
