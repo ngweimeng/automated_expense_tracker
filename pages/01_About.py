@@ -1,23 +1,33 @@
 import streamlit as st
 
-st.set_page_config(page_title="WeiMeng's Budget Tracker", page_icon="💰", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="WeiMeng's Budget Tracker",
+    page_icon="💰",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
 st.title("💰 WeiMeng's Budget Tracker")
-st.write("Use the menu on the left to jump between pages.")
+st.write("A Streamlit app to upload, categorize, and visualize your personal expenses.")
 
 st.markdown(
     """
-    Streamlit is an open-source app framework built specifically for
-    Machine Learning and Data Science projects.
-    **👈 Select a demo from the sidebar** to see some examples
-    of what Streamlit can do!
-    ### Want to learn more?
-    - Check out [streamlit.io](https://streamlit.io)
-    - Jump into our [documentation](https://docs.streamlit.io)
-    - Ask a question in our [community
-        forums](https://discuss.streamlit.io)
-    ### See more complex demos
-    - Use a neural net to [analyze the Udacity Self-driving Car Image
-        Dataset](https://github.com/streamlit/demo-self-driving)
-    - Explore a [New York City rideshare dataset](https://github.com/streamlit/demo-uber-nyc-pickups)
-"""
+    Welcome to **WeiMeng's Budget Tracker**! This app helps you take control of your spending:
+
+    1. **Settings**: Upload your PDF statements and manage your transaction categories.  
+    2. **Dashboard**: Explore interactive summaries, trends over time, and high-spend alerts.  
+
+    **Key features**  
+    - Automatic parsing of credit card PDFs  
+    - Supabase backend for secure data storage  
+    - Categorize transactions with keywords (or edit them manually)  
+    - Visualize spend by category, time period, and more  
+
+    **How to get started**  
+    - Go to **Settings** in the sidebar to upload your first PDF.  
+    - Head over to **Dashboard** to see your spending come to life!  
+
+    ---
+    Created by WeiMeng • [GitHub: ngweimeng](https://github.com/ngweimeng)
+    """
 )
