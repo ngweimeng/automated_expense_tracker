@@ -1,10 +1,10 @@
-# 💰 WeiMeng’s Budget Tracker
+# WeiMeng’s Budget Tracker
 
 A simple, Streamlit-powered app to automatically parse, categorize, and visualize your credit-card transactions—no manual data entry required for the lazy and forgetful.
 
 ---
 
-## 🚀 Motivation
+## Motivation
 
 Keeping track of every transaction by hand is tedious—and easy to forget. This project exists to:
 
