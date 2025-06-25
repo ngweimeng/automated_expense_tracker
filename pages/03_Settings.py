@@ -1,7 +1,11 @@
 import os
 import json
 import pandas as pd
+import re
 import streamlit as st
+from pathlib import Path
+
+from gmail_api import init_gmail_service, get_email_message_details, search_emails
 from utils import init_categories, load_from_db, save_to_db, categorize_transactions, save_categories
 from monopoly_parse import parse_pdf
 
@@ -80,3 +84,53 @@ try:
     )
 except FileNotFoundError:
     st.error("categories.json not found. No categories to display.")
+
+# ── Fetch from Gmail ─────────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("📨 Fetch Wise & Instarem Transactions")
+
+if st.button("Fetch Transactions"):
+    # 1️⃣ Write out the OAuth client_secret from Streamlit Secrets
+    client_secret_json = st.secrets["gmail"]["client_secret"]
+    creds_path = Path("/tmp/client_secret.json")
+    creds_path.write_text(client_secret_json)
+
+    # 2️⃣ Init Gmail service
+    service = init_gmail_service(str(creds_path))
+
+    # 3️⃣ Wise
+    wise_rows = []
+    wise_q   = 'from:noreply@wise.com subject:"spent at"'
+    for msg in search_emails(service, wise_q, max_results=5):
+        d = get_email_message_details(service, msg["id"])
+        m = re.match(r'([\d.,]+\s+[A-Z]{3}) spent at (.+)', d["subject"] or "")
+        amt     = m.group(1) if m else "N/A"
+        merch   = m.group(2).rstrip(".") if m else "N/A"
+        wise_rows.append({
+            "Date":     d["date"],
+            "Amount":   amt,
+            "Merchant": merch
+        })
+
+    st.markdown("**Wise Transactions**")
+    st.table(wise_rows)
+
+    # 4️⃣ Instarem
+    inst_rows = []
+    inst_q    = 'from:donotreply@instarem.com subject:"Transaction successful"'
+    for msg in search_emails(service, inst_q, max_results=6):
+        d = get_email_message_details(service, msg["id"])
+        b = d["body"]
+        ta = re.search(r'Transaction amount\s*([\d.,]+\s+[A-Z]{3})', b)
+        pa = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})',       b)
+        me = re.search(r'Merchant\s*([^\n]+)',                     b)
+        dt = re.search(r'Date,?\s*time\s*([^\n]+)',                b, re.IGNORECASE)
+        inst_rows.append({
+            "Date":              dt.group(1).strip()     if dt else d["date"],
+            "Transaction amt":   ta.group(1).strip()     if ta else "N/A",
+            "Amount paid":       pa.group(1).strip()     if pa else "N/A",
+            "Merchant":          me.group(1).strip()     if me else "N/A"
+        })
+
+    st.markdown("**Instarem Transactions**")
+    st.table(inst_rows)
