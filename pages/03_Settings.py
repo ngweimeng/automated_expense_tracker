@@ -100,11 +100,11 @@ if st.button("Fetch Transactions", key="fetch"):
 # Display fetched, apply filters, and handle adding
 if not st.session_state[tf_key].empty:
     st.markdown("**Fetched Transactions**")
-    # Work on a copy
+        # Work on a copy
     df_fetched = st.session_state[tf_key].copy()
-    # Parse Date into datetime for filtering
-    df_fetched['dt'] = pd.to_datetime(df_fetched['Date'].str.slice(0,19), format="%Y-%m-%d %H:%M:%S", errors='coerce')
-        # Date range and Source filters side by side
+    # Parse Date column into datetime for filtering
+    df_fetched['dt'] = pd.to_datetime(df_fetched['Date'], errors='coerce')
+    # Date range and Source filters side by side
     min_date = df_fetched['dt'].dt.date.min()
     max_date = df_fetched['dt'].dt.date.max()
     col1, col2 = st.columns(2)
