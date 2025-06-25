@@ -12,7 +12,7 @@ from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
 
 # Page config
-tools = st.set_page_config(page_title="Settings", page_icon="⚙️")
+st.set_page_config(page_title="Settings", page_icon="⚙️")
 st.title("💰 WeiMeng's Budget Tracker")
 st.markdown("## *Settings*")
 
@@ -100,7 +100,6 @@ if st.button("Fetch Transactions", key="fetch"):
 # Display fetched, apply filters, and handle adding
 if not st.session_state[tf_key].empty:
     st.markdown("**Fetched Transactions**")
-    # Work on a copy
     df_fetched = st.session_state[tf_key].copy()
     # Convert Date column to datetime for filtering
     dates = pd.to_datetime(df_fetched['Date'], errors='coerce')
@@ -110,6 +109,11 @@ if not st.session_state[tf_key].empty:
     col1, col2 = st.columns(2)
     with col1:
         date_range = st.date_input("Filter by date", [min_date, max_date], key="date_range")
+        # Ensure two dates are selected
+        if not isinstance(date_range, (list, tuple)) or len(date_range) != 2:
+            st.error("Please select both a start **and** end date for filtering.")
+            # Stop further execution of this block
+            st.stop()
     with col2:
         sources = ['All'] + sorted(df_fetched['Source'].unique().tolist())
         selected_source = st.selectbox("Filter by source", sources, key="source_filter")
@@ -152,20 +156,20 @@ if not st.session_state[tf_key].empty:
                 st.success(f"Added {total} new transactions.")
             if dup_count:
                 st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
-            # Remove added rows from session
-            st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
+            st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]  
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
 st.markdown("---")
 raw_df = load_from_db()
 cat_df = categorize_transactions(raw_df)
-if "Date" in cat_df:
-    cat_df["Date"] = pd.to_datetime(cat_df["Date"], errors="coerce")
+if "Date" in cat_df: cat_df["Date"] = pd.to_datetime(cat_df["Date"], errors='coerce')
 if not cat_df.empty:
     st.subheader("🗂️ Categorize/View Raw Transactions Data")
     edited2 = st.data_editor(
         cat_df[["Date","Description","Amount","Currency","Category","Source"]],
-        column_config={"Category": st.column_config.SelectboxColumn(options=list(st.session_state.categories.keys()))},
+        column_config={"Category": st.column_config.SelectboxColumn(
+            options=list(st.session_state.categories.keys())
+        )},
         hide_index=True,
         use_container_width=True
     )
