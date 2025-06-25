@@ -152,41 +152,44 @@ if st.button("Fetch Transactions"):
     st.markdown("**Wise Transactions**")
     st.table(wise_rows)
 
-    # Instarem
+    # ── Instarem Transactions ────────────────────────────────────────────
     inst_rows = []
     inst_q = 'from:donotreply@instarem.com subject:"Transaction successful"'
     for msg in search_emails(service, inst_q, max_results=6):
         d = get_email_message_details(service, msg["id"])
         b = d["body"]
 
-        # extract the raw date string
+        # 1) Extract the raw date (e.g. "19th Jun, 2025 3:48 PM SGT")
         dt_match = re.search(r'Date,?\s*time\s*([^\n]+)', b, re.IGNORECASE)
         raw_dt   = dt_match.group(1).strip() if dt_match else d["date"]
 
-        # 1) remove ordinal suffix on the day (e.g. '24th' → '24')
-        raw_dt = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', raw_dt)
+        # 2) Clean out ordinal suffix so parser can read it ("19th" → "19")
+        clean_dt = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', raw_dt)
 
-        # 2) parse into a datetime
+        # 3) Try parsing with dateutil; fallback to header‐date if it fails
         try:
-            parsed_dt = date_parser.parse(raw_dt)
+            parsed = date_parser.parse(clean_dt)
         except ValueError:
-            # fallback to header date parse
-            from email.utils import parsedate_to_datetime
-            parsed_dt = parsedate_to_datetime(d["date"])
+            parsed = parsedate_to_datetime(d["date"])
 
-        # 3) format consistently
-        formatted_dt = parsed_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+        # 4) Ensure it’s timezone‐aware in SGT
+        if not parsed.tzinfo:
+            parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Singapore"))
+        dt_sgt = parsed.astimezone(ZoneInfo("Asia/Singapore"))
 
-        # extract amounts & merchant
+        # 5) Uniform formatting
+        formatted = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+        # extract amounts & merchant as before
         ta = re.search(r'Transaction amount\s*([\d.,]+\s+[A-Z]{3})', b)
         pa = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})',       b)
         me = re.search(r'Merchant\s*([^\n]+)',                     b)
 
         inst_rows.append({
-            "Date":              formatted_dt,
-            "Transaction amt":   ta.group(1).strip() if ta else "N/A",
-            "Amount paid":       pa.group(1).strip() if pa else "N/A",
-            "Merchant":          me.group(1).strip() if me else "N/A"
+            "Date":            formatted,
+            "Transaction amt": ta.group(1).strip() if ta else "N/A",
+            "Amount paid":     pa.group(1).strip() if pa else "N/A",
+            "Merchant":        me.group(1).strip() if me else "N/A"
         })
 
     st.markdown("**Instarem Transactions**")
