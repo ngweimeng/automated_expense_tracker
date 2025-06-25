@@ -7,7 +7,10 @@ from utils import init_categories, load_from_db, categorize_transactions
 
 st.set_page_config(page_title="Dashboard", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
-st.write("View spending patterns and key metrics here.")
+st.markdown(
+    """
+## *Dashboard*
+    """)
 
 init_categories()
 
