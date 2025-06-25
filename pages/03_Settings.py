@@ -100,26 +100,26 @@ if st.button("Fetch Transactions", key="fetch"):
 # Display fetched, apply filters, and handle adding
 if not st.session_state[tf_key].empty:
     st.markdown("**Fetched Transactions**")
-        # Work on a copy
+    # Work on a copy
     df_fetched = st.session_state[tf_key].copy()
-    # Parse Date column into datetime for filtering
-    df_fetched['dt'] = pd.to_datetime(df_fetched['Date'], errors='coerce')
+    # Convert Date column to datetime for filtering
+    dates = pd.to_datetime(df_fetched['Date'], errors='coerce')
     # Date range and Source filters side by side
-    min_date = df_fetched['dt'].dt.date.min()
-    max_date = df_fetched['dt'].dt.date.max()
+    min_date = dates.dt.date.min()
+    max_date = dates.dt.date.max()
     col1, col2 = st.columns(2)
     with col1:
         date_range = st.date_input("Filter by date", [min_date, max_date], key="date_range")
     with col2:
         sources = ['All'] + sorted(df_fetched['Source'].unique().tolist())
         selected_source = st.selectbox("Filter by source", sources, key="source_filter")
-    # Apply filters
-    df_fetched = df_fetched[(df_fetched['dt'].dt.date >= date_range[0]) & (df_fetched['dt'].dt.date <= date_range[1])]
+    # Apply date filter
+    mask_date = (dates.dt.date >= date_range[0]) & (dates.dt.date <= date_range[1])
+    df_fetched = df_fetched.loc[mask_date]
+    # Apply source filter
     if selected_source != 'All':
         df_fetched = df_fetched[df_fetched['Source'] == selected_source]
 
-        # Drop internal filter column before showing
-    df_display = df_fetched.drop(columns=['dt'])
     # Show editable table
     edited = st.data_editor(
         df_fetched,
@@ -153,7 +153,6 @@ if not st.session_state[tf_key].empty:
             if dup_count:
                 st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
             # Remove added rows from session
-            st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
             st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
