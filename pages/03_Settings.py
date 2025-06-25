@@ -97,21 +97,36 @@ if st.button("Fetch Transactions", key="fetch"):
         })
     st.session_state[tf_key] = pd.DataFrame(rows)
 
-# Display fetched and handle adding
+# Display fetched, apply filters, and handle adding
 if not st.session_state[tf_key].empty:
     st.markdown("**Fetched Transactions**")
+    # Work on a copy
+    df_fetched = st.session_state[tf_key].copy()
+    # Parse Date into datetime for filtering
+    df_fetched['dt'] = pd.to_datetime(df_fetched['Date'].str.slice(0,19), format="%Y-%m-%d %H:%M:%S", errors='coerce')
+    # Date range filter
+    min_date = df_fetched['dt'].dt.date.min()
+    max_date = df_fetched['dt'].dt.date.max()
+    date_range = st.date_input("Filter by date", [min_date, max_date])
+    df_fetched = df_fetched[(df_fetched['dt'].dt.date >= date_range[0]) & (df_fetched['dt'].dt.date <= date_range[1])]
+    # Source filter
+    sources = ['All'] + sorted(df_fetched['Source'].unique().tolist())
+    selected_source = st.selectbox("Filter by source", sources)
+    if selected_source != 'All':
+        df_fetched = df_fetched[df_fetched['Source'] == selected_source]
+    # Show editable table
     edited = st.data_editor(
-        st.session_state[tf_key],
+        df_fetched,
         column_config={"Add?": st.column_config.CheckboxColumn("Add to Raw")},
         hide_index=True,
         use_container_width=True
     )
+    # Add selected with dedupe
     if st.button("Add Selected to Raw Transactions", key="add"):
         to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
         if to_add.empty:
             st.info("No transactions selected for adding.")
         else:
-            # Load existing raw and normalize 'Amount' dtype
             raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
             raw["Amount"] = raw["Amount"].astype(str)
             to_add["Amount"] = to_add["Amount"].astype(str)
@@ -124,16 +139,14 @@ if not st.session_state[tf_key].empty:
             new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
             dup_count = len(to_add) - len(new_rows)
             if not new_rows.empty:
-                # Insert per source (Wise or Instarem)
                 total = 0
                 for source, group in new_rows.groupby("Source"):
-                    # save_to_db expects (df, source_name)
                     save_to_db(group.drop(columns=["Source"]), source)
                     total += len(group)
                 st.success(f"Added {total} new transactions.")
             if dup_count:
                 st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
-            # Remove added rows from fetched list
+            # Remove added rows from session
             st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
             st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
 
