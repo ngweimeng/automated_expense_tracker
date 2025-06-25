@@ -9,6 +9,8 @@ from gmail_api import init_gmail_service, get_email_message_details, search_emai
 from utils import init_categories, load_from_db, save_to_db, categorize_transactions, save_categories
 from monopoly_parse import parse_pdf
 
+from dateutil import parser as date_parser
+
 st.set_page_config(page_title="Settings", page_icon="⚙️")
 
 # ────────────────────────────────────────────────────────────────────────────────
@@ -136,15 +138,36 @@ if st.button("Fetch Transactions"):
     for msg in search_emails(service, inst_q, max_results=6):
         d = get_email_message_details(service, msg["id"])
         b = d["body"]
+
+        # extract the raw date string
+        dt_match = re.search(r'Date,?\s*time\s*([^\n]+)', b, re.IGNORECASE)
+        raw_dt   = dt_match.group(1).strip() if dt_match else d["date"]
+
+        # 1) remove ordinal suffix on the day (e.g. '24th' → '24')
+        raw_dt = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', raw_dt)
+
+        # 2) parse into a datetime
+        try:
+            parsed_dt = date_parser.parse(raw_dt)
+        except ValueError:
+            # fallback to header date parse
+            from email.utils import parsedate_to_datetime
+            parsed_dt = parsedate_to_datetime(d["date"])
+
+        # 3) format consistently
+        formatted_dt = parsed_dt.strftime('%Y-%m-%d %H:%M:%S %Z')
+
+        # extract amounts & merchant
         ta = re.search(r'Transaction amount\s*([\d.,]+\s+[A-Z]{3})', b)
-        pa = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})', b)
-        me = re.search(r'Merchant\s*([^\n]+)', b)
-        dt = re.search(r'Date,?\s*time\s*([^\n]+)', b, re.IGNORECASE)
+        pa = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})',       b)
+        me = re.search(r'Merchant\s*([^\n]+)',                     b)
+
         inst_rows.append({
-            "Date":            dt.group(1).strip() if dt else d["date"],
-            "Transaction amt": ta.group(1).strip() if ta else "N/A",
-            "Amount paid":     pa.group(1).strip() if pa else "N/A",
-            "Merchant":        me.group(1).strip() if me else "N/A"
+            "Date":              formatted_dt,
+            "Transaction amt":   ta.group(1).strip() if ta else "N/A",
+            "Amount paid":       pa.group(1).strip() if pa else "N/A",
+            "Merchant":          me.group(1).strip() if me else "N/A"
         })
+
     st.markdown("**Instarem Transactions**")
     st.table(inst_rows)
