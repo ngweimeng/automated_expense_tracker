@@ -159,37 +159,40 @@ if st.button("Fetch Transactions"):
         d = get_email_message_details(service, msg["id"])
         b = d["body"]
 
-        # 1) Extract the raw date (e.g. "19th Jun, 2025 3:48 PM SGT")
+        # Extract raw date string
         dt_match = re.search(r'Date,?\s*time\s*([^\n]+)', b, re.IGNORECASE)
         raw_dt   = dt_match.group(1).strip() if dt_match else d["date"]
 
-        # 2) Clean out ordinal suffix so parser can read it ("19th" → "19")
+        # Clean ordinal suffix and parse
         clean_dt = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', raw_dt)
-
-        # 3) Try parsing with dateutil; fallback to header‐date if it fails
         try:
-            parsed = date_parser.parse(clean_dt)
+            parsed_dt = date_parser.parse(clean_dt)
         except ValueError:
-            parsed = parsedate_to_datetime(d["date"])
+            parsed_dt = parsedate_to_datetime(d["date"])
 
-        # 4) Ensure it’s timezone‐aware in SGT
-        if not parsed.tzinfo:
-            parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Singapore"))
-        dt_sgt = parsed.astimezone(ZoneInfo("Asia/Singapore"))
-
-        # 5) Uniform formatting
+        # Make timezone-aware SGT and format
+        if not parsed_dt.tzinfo:
+            parsed_dt = parsed_dt.replace(tzinfo=ZoneInfo("Asia/Singapore"))
+        dt_sgt    = parsed_dt.astimezone(ZoneInfo("Asia/Singapore"))
         formatted = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-        # extract amounts & merchant as before
-        ta = re.search(r'Transaction amount\s*([\d.,]+\s+[A-Z]{3})', b)
-        pa = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})',       b)
-        me = re.search(r'Merchant\s*([^\n]+)',                     b)
+        # Merchant → Description
+        me = re.search(r'Merchant\s*([^\n]+)', b)
+        description = me.group(1).strip() if me else "N/A"
+
+        # Amount paid → split into amount & currency
+        pa = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})', b)
+        paid = pa.group(1).strip() if pa else ""
+        if paid and " " in paid:
+            amount, currency = paid.rsplit(" ", 1)
+        else:
+            amount, currency = "N/A", "N/A"
 
         inst_rows.append({
-            "Date":            formatted,
-            "Transaction amt": ta.group(1).strip() if ta else "N/A",
-            "Amount paid":     pa.group(1).strip() if pa else "N/A",
-            "Merchant":        me.group(1).strip() if me else "N/A"
+            "Date":        formatted,
+            "Description": description,
+            "Amount":      amount,
+            "Currency":    currency,
         })
 
     st.markdown("**Instarem Transactions**")
