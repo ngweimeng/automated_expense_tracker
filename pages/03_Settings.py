@@ -124,11 +124,17 @@ if not st.session_state[tf_key].empty:
             new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
             dup_count = len(to_add) - len(new_rows)
             if not new_rows.empty:
-                save_to_db(new_rows, "fetched")
-                st.success(f"Added {len(new_rows)} new transactions.")
+                # Insert per source (Wise or Instarem)
+                total = 0
+                for source, group in new_rows.groupby("Source"):
+                    # save_to_db expects (df, source_name)
+                    save_to_db(group.drop(columns=["Source"]), source)
+                    total += len(group)
+                st.success(f"Added {total} new transactions.")
             if dup_count:
                 st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
-            # Remove added
+            # Remove added rows from fetched list
+            st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
             st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
