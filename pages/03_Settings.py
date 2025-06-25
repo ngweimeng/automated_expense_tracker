@@ -27,7 +27,10 @@ token_file.write_text(st.secrets["gmail"]["token"])
 # ────────────────────────────────────────────────────────────────────────────────
 
 st.title("💰 WeiMeng's Budget Tracker")
-st.write("Manage your budget categories and upload raw transaction data here.")
+st.markdown(
+    """
+## *Dashboard*
+    """)
 
 init_categories()
 
