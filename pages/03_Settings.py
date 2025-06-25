@@ -29,7 +29,7 @@ token_file.write_text(st.secrets["gmail"]["token"])
 st.title("💰 WeiMeng's Budget Tracker")
 st.markdown(
     """
-## *Dashboard*
+## *Settings*
     """)
 
 init_categories()
