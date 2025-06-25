@@ -10,6 +10,7 @@ from utils import init_categories, load_from_db, save_to_db, categorize_transact
 from monopoly_parse import parse_pdf
 
 from dateutil import parser as date_parser
+from zoneinfo import ZoneInfo
 
 st.set_page_config(page_title="Settings", page_icon="⚙️")
 
@@ -125,10 +126,27 @@ if st.button("Fetch Transactions"):
     wise_q = 'from:noreply@wise.com subject:"spent at"'
     for msg in search_emails(service, wise_q, max_results=5):
         d = get_email_message_details(service, msg["id"])
-        m = re.match(r'([\d.,]+\s+[A-Z]{3}) spent at (.+)', d["subject"] or "")
+        
+        # 1) Parse the header date string into a datetime
+        dt_utc = parsedate_to_datetime(d["date"])  # yields an aware datetime in UTC
+        
+        # 2) Convert to Singapore Time (or your desired zone)
+        dt_sgt = dt_utc.astimezone(ZoneInfo("Asia/Singapore"))
+        
+        # 3) Format consistently
+        formatted_date = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
+        
+        # 4) Extract amount & merchant as before
+        m     = re.match(r"([\d.,]+\s+[A-Z]{3}) spent at (.+)", d["subject"] or "")
         amt   = m.group(1) if m else "N/A"
         merch = m.group(2).rstrip(".") if m else "N/A"
-        wise_rows.append({"Date": d["date"], "Amount": amt, "Merchant": merch})
+
+        wise_rows.append({
+            "Date":     formatted_date,
+            "Amount":   amt,
+            "Merchant": merch
+        })
+
     st.markdown("**Wise Transactions**")
     st.table(wise_rows)
 
