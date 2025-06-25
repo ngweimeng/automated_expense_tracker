@@ -104,16 +104,20 @@ if not st.session_state[tf_key].empty:
     df_fetched = st.session_state[tf_key].copy()
     # Parse Date into datetime for filtering
     df_fetched['dt'] = pd.to_datetime(df_fetched['Date'].str.slice(0,19), format="%Y-%m-%d %H:%M:%S", errors='coerce')
-    # Date range filter
+        # Date range and Source filters side by side
     min_date = df_fetched['dt'].dt.date.min()
     max_date = df_fetched['dt'].dt.date.max()
-    date_range = st.date_input("Filter by date", [min_date, max_date])
+    col1, col2 = st.columns(2)
+    with col1:
+        date_range = st.date_input("Filter by date", [min_date, max_date], key="date_range")
+    with col2:
+        sources = ['All'] + sorted(df_fetched['Source'].unique().tolist())
+        selected_source = st.selectbox("Filter by source", sources, key="source_filter")
+    # Apply filters
     df_fetched = df_fetched[(df_fetched['dt'].dt.date >= date_range[0]) & (df_fetched['dt'].dt.date <= date_range[1])]
-    # Source filter
-    sources = ['All'] + sorted(df_fetched['Source'].unique().tolist())
-    selected_source = st.selectbox("Filter by source", sources)
     if selected_source != 'All':
         df_fetched = df_fetched[df_fetched['Source'] == selected_source]
+
     # Show editable table
     edited = st.data_editor(
         df_fetched,
