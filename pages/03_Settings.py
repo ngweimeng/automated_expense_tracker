@@ -131,15 +131,22 @@ if not st.session_state[tf_key].empty:
         hide_index=True,
         use_container_width=True
     )
-    # Add selected with dedupe
+        # Add selected with dedupe
     if st.button("Add Selected to Raw Transactions", key="add"):
         to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
         if to_add.empty:
             st.info("No transactions selected for adding.")
         else:
+            # Reload raw transactions and normalize keys
             raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
+            # Normalize Date formatting to match fetched
+            raw["Date"] = pd.to_datetime(raw["Date"], errors='coerce').dt.strftime("%Y-%m-%d %H:%M:%S")
+            # Normalize Date in to_add
+            to_add["Date"] = pd.to_datetime(to_add["Date"], errors='coerce').dt.strftime("%Y-%m-%d %H:%M:%S")
+            # Normalize Amount to string
             raw["Amount"] = raw["Amount"].astype(str)
             to_add["Amount"] = to_add["Amount"].astype(str)
+
             merged = to_add.merge(
                 raw,
                 on=["Date","Description","Amount","Currency","Source"],
@@ -156,7 +163,7 @@ if not st.session_state[tf_key].empty:
                 st.success(f"Added {total} new transactions.")
             if dup_count:
                 st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
-            st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]  
+            st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
 st.markdown("---")
