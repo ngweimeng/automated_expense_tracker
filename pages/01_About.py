@@ -10,7 +10,7 @@ st.title("💰 WeiMeng's Budget Tracker")
 
 st.markdown(
     """
-## *Track. Analyze. Budget.* ##
+## About the Project
 
 ---
 ### 🎯 Motivation
