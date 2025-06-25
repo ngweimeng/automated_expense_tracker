@@ -133,10 +133,10 @@ if st.button("Fetch Transactions"):
         dt_utc = parsedate_to_datetime(d["date"])  # yields an aware datetime in UTC
         
         # 2) Convert to Singapore Time (or your desired zone)
-        dt_cet = dt_utc.astimezone(ZoneInfo("Europe/Paris"))
+        dt_sgt = dt_utc.astimezone(ZoneInfo("Asia/Singapore"))
         
         # 3) Format consistently
-        formatted_date = dt_cet.strftime("%Y-%m-%d %H:%M:%S %Z")
+        formatted_date = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
         
         # 4) Extract amount & merchant as before
         m     = re.match(r"([\d.,]+\s+[A-Z]{3}) spent at (.+)", d["subject"] or "")
@@ -152,7 +152,7 @@ if st.button("Fetch Transactions"):
     st.markdown("**Wise Transactions**")
     st.table(wise_rows)
 
-    # ── Instarem Transactions ────────────────────────────────────────────
+    # Instarem 
     inst_rows = []
     inst_q = 'from:donotreply@instarem.com subject:"Transaction successful"'
     for msg in search_emails(service, inst_q, max_results=6):
@@ -175,10 +175,10 @@ if st.button("Fetch Transactions"):
         # 4) Ensure it’s timezone‐aware in SGT
         if not parsed.tzinfo:
             parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Singapore"))
-        dt_cet = dt_utc.astimezone(ZoneInfo("Europe/Paris"))
+        dt_sgt = parsed.astimezone(ZoneInfo("Asia/Singapore"))
 
         # 5) Uniform formatting
-        formatted = dt_cet.strftime("%Y-%m-%d %H:%M:%S %Z")
+        formatted = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
         # extract amounts & merchant as before
         ta = re.search(r'Transaction amount\s*([\d.,]+\s+[A-Z]{3})', b)
