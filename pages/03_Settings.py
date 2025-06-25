@@ -128,25 +128,27 @@ if st.button("Fetch Transactions"):
     wise_q = 'from:noreply@wise.com subject:"spent at"'
     for msg in search_emails(service, wise_q, max_results=5):
         d = get_email_message_details(service, msg["id"])
-        
-        # 1) Parse the header date string into a datetime
-        dt_utc = parsedate_to_datetime(d["date"])  # yields an aware datetime in UTC
-        
-        # 2) Convert to Singapore Time (or your desired zone)
+
+        # 1) Parse & convert header date to SGT
+        dt_utc = parsedate_to_datetime(d["date"])
         dt_sgt = dt_utc.astimezone(ZoneInfo("Asia/Singapore"))
-        
-        # 3) Format consistently
-        formatted_date = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
-        
-        # 4) Extract amount & merchant as before
-        m     = re.match(r"([\d.,]+\s+[A-Z]{3}) spent at (.+)", d["subject"] or "")
-        amt   = m.group(1) if m else "N/A"
-        merch = m.group(2).rstrip(".") if m else "N/A"
+        formatted = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+        # 2) Extract amount, currency & merchant from subject
+        #    e.g. "8.50 EUR spent at Ready"
+        m = re.match(r"([\d.,]+)\s+([A-Z]{3}) spent at (.+)", d["subject"] or "")
+        if m:
+            amount   = m.group(1)
+            currency = m.group(2)
+            merchant = m.group(3).rstrip(".")
+        else:
+            amount = currency = merchant = "N/A"
 
         wise_rows.append({
-            "Date":     formatted_date,
-            "Amount":   amt,
-            "Merchant": merch
+            "Date":        formatted,
+            "Description": merchant,
+            "Amount":      amount,
+            "Currency":    currency,
         })
 
     st.markdown("**Wise Transactions**")
