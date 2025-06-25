@@ -19,17 +19,15 @@ init_categories()
 
 
 # ──────────────── OAuth Setup ────────────────────────────────────────────────
-# Write client_secret.json
 client_secret = st.secrets["gmail"]["client_secret"]
 creds_path     = Path("/tmp/client_secret.json")
 creds_path.write_text(client_secret)
-# Write token.json
+
 token_dir  = Path("/tmp") / "token files"
 token_dir.mkdir(parents=True, exist_ok=True)
 token_file = token_dir / "token_gmail_v1.json"
 token_file.write_text(st.secrets["gmail"]["token"])
 # ─────────────────────────────────────────────────────────────────────────────
-
 
 
 # ──────────────── Fetch New Transactions ─────────────────────────────────────
@@ -50,15 +48,15 @@ if st.button("Fetch Transactions"):
 
         m = re.match(r"([\d.,]+)\s+([A-Z]{3}) spent at (.+)", d["subject"] or "")
         if m:
-            amt, curr, merch = m.group(1), m.group(2), m.group(3).rstrip(".")
+            amount, currency, merchant = m.group(1), m.group(2), m.group(3).rstrip(".")
         else:
-            amt = curr = merch = "N/A"
+            amount = currency = merchant = "N/A"
 
         fetched.append({
             "Date":        date_s,
-            "Description": merch,
-            "Amount":      amt,
-            "Currency":    curr,
+            "Description": merchant,
+            "Amount":      amount,
+            "Currency":    currency,
             "Source":      "Wise",
             "Add?":        False
         })
@@ -69,41 +67,38 @@ if st.button("Fetch Transactions"):
         d = get_email_message_details(service, msg["id"])
         b = d["body"]
 
-        # extract & clean date
         dtm     = re.search(r'Date,?\s*time\s*([^\n]+)', b, re.IGNORECASE)
         raw_dt  = dtm.group(1).strip() if dtm else d["date"]
         clean   = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', raw_dt)
         try:
             parsed = date_parser.parse(clean)
-        except:
+        except ValueError:
             parsed = parsedate_to_datetime(d["date"])
         if not parsed.tzinfo:
             parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Singapore"))
         dt_sgt  = parsed.astimezone(ZoneInfo("Asia/Singapore"))
         date_s  = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
 
-        # merchant → description
         me = re.search(r'Merchant\s*([^\n]+)', b)
         desc = me.group(1).strip() if me else "N/A"
 
-        # amount paid → amount+currency
         pa = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})', b)
         paid = pa.group(1).strip() if pa else ""
         if paid and " " in paid:
-            amt, curr = paid.rsplit(" ", 1)
+            amount, currency = paid.rsplit(" ", 1)
         else:
-            amt = curr = "N/A"
+            amount = currency = "N/A"
 
         fetched.append({
             "Date":        date_s,
             "Description": desc,
-            "Amount":      amt,
-            "Currency":    curr,
+            "Amount":      amount,
+            "Currency":    currency,
             "Source":      "Instarem",
             "Add?":        False
         })
 
-    # Show fetched table with a checkbox column
+    # Show fetched table with checkbox
     fetched_df = pd.DataFrame(fetched)
     st.markdown("**Fetched Transactions**")
     edited = st.data_editor(
@@ -115,17 +110,28 @@ if st.button("Fetch Transactions"):
         use_container_width=True
     )
 
-    # Button to add selected
+    # ── Add Selected to Raw Transactions (with dedupe) ────────────────────────
     if st.button("Add Selected to Raw Transactions"):
-        to_add = edited.loc[edited["Add?"]]
-        if not to_add.empty:
-            # drop the Add? column
-            to_add = to_add.drop(columns=["Add?"])
-            save_to_db(to_add, src="fetched")  # or pass each Source individually
-            st.success(f"Added {len(to_add)} transactions to raw DB.")
-        else:
+        to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
+        if to_add.empty:
             st.info("No transactions selected for adding.")
+        else:
+            raw = load_from_db()[["Date", "Description", "Amount", "Currency", "Source"]]
+            merged = to_add.merge(
+                raw,
+                on=["Date", "Description", "Amount", "Currency", "Source"],
+                how="left",
+                indicator=True
+            )
+            new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+            dup_count = len(to_add) - len(new_rows)
 
+            if not new_rows.empty:
+                save_to_db(new_rows, src="fetched")
+                st.success(f"Added {len(new_rows)} new transactions.")
+            if dup_count:
+                st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
+    # ────────────────────────────────────────────────────────────────────────
 
 
 # ─────────────── Categorize/View Raw Transactions ────────────────────────────
@@ -137,8 +143,8 @@ if "Date" in df:
 
 if not df.empty:
     st.subheader("🗂️ Categorize/View Raw Transactions Data")
-    edited = st.data_editor(
-        df[["Date","Description","Amount","Currency","Category","Source"]],
+    edited2 = st.data_editor(
+        df[["Date", "Description", "Amount", "Currency", "Category", "Source"]],
         column_config={
             "Category": st.column_config.SelectboxColumn(
                 options=list(st.session_state.categories.keys())
@@ -148,7 +154,7 @@ if not df.empty:
         use_container_width=True
     )
     if st.button("Apply Changes to Categories"):
-        for idx, row in edited.iterrows():
+        for idx, row in edited2.iterrows():
             old, new = df.at[idx, "Category"], row["Category"]
             desc = row["Description"]
             if new != old and desc not in st.session_state.categories.get(new, []):
