@@ -118,6 +118,8 @@ if not st.session_state[tf_key].empty:
     if selected_source != 'All':
         df_fetched = df_fetched[df_fetched['Source'] == selected_source]
 
+        # Drop internal filter column before showing
+    df_display = df_fetched.drop(columns=['dt'])
     # Show editable table
     edited = st.data_editor(
         df_fetched,
