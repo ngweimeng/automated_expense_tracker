@@ -1,43 +1,68 @@
 import os
+from pathlib import Path
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
 
+
 def create_service(client_secret_file, api_name, api_version, *scopes, prefix=''):
-    CLIENT_SECRET_FILE = client_secret_file
-    API_SERVICE_NAME = api_name
-    API_VERSION = api_version
-    SCOPES = [scope for scope in scopes]
+    """
+    Creates and returns a Google API service client, handling OAuth2 token storage and refresh.
+
+    Parameters:
+    - client_secret_file: Path to the OAuth2 client_secret.json file
+    - api_name: Name of the Google API (e.g., 'gmail')
+    - api_version: Version of the API (e.g., 'v1')
+    - scopes: One or more OAuth2 scopes
+    - prefix: Optional token filename prefix
+
+    Token storage:
+    - Uses '/tmp/token files/' in cloud environments or defaults to '/tmp/'
+    - Reads existing token JSON from env var 'GMAIL_OAUTH_TOKEN' if provided
+    - Falls back to browser or console flow for first auth
+    """
+    SCOPES = list(scopes)
+
+    # Determine base directory for token storage (use /tmp in cloud)
+    base_dir = Path(os.getenv('BASE_TOKEN_DIR', '/tmp'))
+    token_dir = base_dir / 'token files'
+    token_dir.mkdir(parents=True, exist_ok=True)
+    token_file = token_dir / f'token_{api_name}_{api_version}{prefix}.json'
+
+    # If a token is provided via environment, write it once
+    token_json = os.getenv('GMAIL_OAUTH_TOKEN')
+    if token_json and not token_file.exists():
+        token_file.write_text(token_json)
 
     creds = None
-    working_dir = os.getcwd()
-    token_dir = 'token files'
-    token_file = f'token_{API_SERVICE_NAME}_{API_VERSION}{prefix}.json'
+    # Attempt to load existing credentials
+    if token_file.exists():
+        creds = Credentials.from_authorized_user_file(str(token_file), SCOPES)
 
-    ### Check if token dir exists first, if not, create the folder
-    if not os.path.exists(os.path.join(working_dir, token_dir)):
-        os.mkdir(os.path.join(working_dir, token_dir))
-
-    if os.path.exists(os.path.join(working_dir, token_dir, token_file)):
-        creds = Credentials.from_authorized_user_file(os.path.join(working_dir, token_dir, token_file), SCOPES)
-
+    # If no valid credentials, perform OAuth flow or refresh
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(CLIENT_SECRET_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
+            flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
+            try:
+                # Try local server flow (works on dev machine)
+                creds = flow.run_local_server(port=0)
+            except Exception:
+                # Fallback to console flow if no browser available
+                creds = flow.run_console()
+        # Save the refreshed/new credentials
+        token_file.write_text(creds.to_json())
 
-        with open(os.path.join(working_dir, token_dir, token_file), 'w') as token:
-            token.write(creds.to_json())
-
+    # Build service client
     try:
-        service = build(API_SERVICE_NAME, API_VERSION, credentials=creds, static_discovery=False)
-        print(API_SERVICE_NAME, API_VERSION, 'service created successfully')
+        service = build(api_name, api_version, credentials=creds, static_discovery=False)
+        print(f"{api_name} {api_version} service created successfully")
         return service
     except Exception as e:
         print(e)
-        print(f'Failed to create service instance for {API_SERVICE_NAME}')
-        os.remove(os.path.join(working_dir, token_dir, token_file))
+        print(f"Failed to create service instance for {api_name}")
+        # Remove bad token to force re-auth next time
+        token_file.unlink(missing_ok=True)
         return None

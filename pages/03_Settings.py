@@ -11,6 +11,11 @@ from monopoly_parse import parse_pdf
 
 
 st.set_page_config(page_title="Settings", page_icon="⚙️")
+# write client_secret.json from secrets
+client_secret = st.secrets["gmail"]["client_secret"]
+Path("/tmp/client_secret.json").write_text(client_secret)
+# write token.json from secrets
+Path("/tmp/token files/token_gmail_v1.json").write_text(st.secrets["gmail"]["token"])
 st.title("💰 WeiMeng's Budget Tracker")
 st.write("Manage your budget categories and upload raw transaction data here.")
 
