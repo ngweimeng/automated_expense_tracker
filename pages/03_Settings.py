@@ -12,19 +12,18 @@ from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
 
 # Page config
-st.set_page_config(page_title="Settings", page_icon="⚙️")
+tools = st.set_page_config(page_title="Settings", page_icon="⚙️")
 st.title("💰 WeiMeng's Budget Tracker")
 st.markdown("## *Settings*")
 
-# Initialize categories\init_categories()
+# Initialize categories
+init_categories()
 
-# ───────── OAuth Setup ─────────────────────────────────────────────────────────
-# Write OAuth2 client_secret.json from Streamlit Secrets
+# ──────────────── OAuth Setup ────────────────────────────────────────────────
 client_secret = st.secrets["gmail"]["client_secret"]
 creds_path     = Path("/tmp/client_secret.json")
 creds_path.write_text(client_secret)
 
-# Ensure token files directory exists and write token
 token_dir  = Path("/tmp") / "token files"
 token_dir.mkdir(parents=True, exist_ok=True)
 token_file = token_dir / "token_gmail_v1.json"
@@ -35,12 +34,12 @@ token_file.write_text(st.secrets["gmail"]["token"])
 st.markdown("---")
 st.subheader("📨 Fetch Wise & Instarem Transactions")
 
-# Preserve fetched DataFrame across runs
+# Session storage key for fetched transactions
 tf_key = "fetched_df"
 if tf_key not in st.session_state:
     st.session_state[tf_key] = pd.DataFrame()
 
-# Fetch button
+# Fetch new transactions
 if st.button("Fetch Transactions", key="fetch"):
     service = init_gmail_service(str(creds_path))
     rows = []
@@ -98,7 +97,7 @@ if st.button("Fetch Transactions", key="fetch"):
         })
     st.session_state[tf_key] = pd.DataFrame(rows)
 
-# Display and Add
+# Display fetched and handle adding
 if not st.session_state[tf_key].empty:
     st.markdown("**Fetched Transactions**")
     edited = st.data_editor(
@@ -112,7 +111,10 @@ if not st.session_state[tf_key].empty:
         if to_add.empty:
             st.info("No transactions selected for adding.")
         else:
+            # Load existing raw and normalize 'Amount' dtype
             raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
+            raw["Amount"] = raw["Amount"].astype(str)
+            to_add["Amount"] = to_add["Amount"].astype(str)
             merged = to_add.merge(
                 raw,
                 on=["Date","Description","Amount","Currency","Source"],
@@ -126,7 +128,7 @@ if not st.session_state[tf_key].empty:
                 st.success(f"Added {len(new_rows)} new transactions.")
             if dup_count:
                 st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
-            # Remove added rows from fetched list
+            # Remove added
             st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
@@ -139,11 +141,7 @@ if not cat_df.empty:
     st.subheader("🗂️ Categorize/View Raw Transactions Data")
     edited2 = st.data_editor(
         cat_df[["Date","Description","Amount","Currency","Category","Source"]],
-        column_config={
-            "Category": st.column_config.SelectboxColumn(
-                options=list(st.session_state.categories.keys())
-            )
-        },
+        column_config={"Category": st.column_config.SelectboxColumn(options=list(st.session_state.categories.keys()))},
         hide_index=True,
         use_container_width=True
     )
