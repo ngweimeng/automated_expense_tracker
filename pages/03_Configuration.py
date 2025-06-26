@@ -37,150 +37,151 @@ token_file.write_text(st.secrets["gmail"]["token"])
 st.markdown("---")
 st.subheader("📨 Fetch Wise & Instarem Transactions")
 
-# Session storage key for fetched transactions
-tf_key = "fetched_df"
-if tf_key not in st.session_state:
-    st.session_state[tf_key] = pd.DataFrame()
+with st.expander("Click here to fetch transaction automatically (Wise & Instarem only)", expanded=False):
+    # Session storage key for fetched transactions
+    tf_key = "fetched_df"
+    if tf_key not in st.session_state:
+        st.session_state[tf_key] = pd.DataFrame()
 
-# Fetch new transactions
-if st.button("Fetch Transactions", key="fetch"):
-    service = init_gmail_service(str(creds_path))
-    rows = []
-    # Wise
-    wise_q = 'from:noreply@wise.com subject:"spent at"'
-    for msg in search_emails(service, wise_q, max_results=10):
-        d      = get_email_message_details(service, msg["id"])
-        dt_utc = parsedate_to_datetime(d["date"])
-        dt_sgt = dt_utc.astimezone(ZoneInfo("UTC"))
-        date_s = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
-        m = re.match(r"([\d.,]+)\s+([A-Z]{3}) spent at (.+)", d["subject"] or "")
-        if m:
-            amount, currency, merchant = m.group(1), m.group(2), m.group(3).rstrip('.')
-        else:
-            amount = currency = merchant = "N/A"
-        rows.append({
-            "Date":        date_s,
-            "Description": merchant,
-            "Amount":      amount,
-            "Currency":    currency,
-            "Source":      "Wise",
-            "Add?":        False
-        })
-    # Instarem
-    inst_q = 'from:donotreply@instarem.com subject:"Transaction successful"'
-    for msg in search_emails(service, inst_q, max_results=10):
-        d = get_email_message_details(service, msg["id"])
-        b = d["body"]
-        dtm     = re.search(r'Date,?\s*time\s*([^\n]+)', b, re.IGNORECASE)
-        raw_dt  = dtm.group(1).strip() if dtm else d["date"]
-        clean   = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', raw_dt)
-        try:
-            parsed = date_parser.parse(clean)
-        except ValueError:
-            parsed = parsedate_to_datetime(d["date"])
-        if not parsed.tzinfo:
-            parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Singapore"))
-        dt_sgt  = parsed.astimezone(ZoneInfo("UTC"))
-        date_s  = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
-        me      = re.search(r'Merchant\s*([^\n]+)', b)
-        desc    = me.group(1).strip() if me else "N/A"
-        pa      = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})', b)
-        paid    = pa.group(1).strip() if pa else ""
-        if paid and " " in paid:
-            amount, currency = paid.rsplit(" ", 1)
-        else:
-            amount = currency = "N/A"
-        rows.append({
-            "Date":        date_s,
-            "Description": desc,
-            "Amount":      amount,
-            "Currency":    currency,
-            "Source":      "Instarem",
-            "Add?":        False
-        })
-    st.session_state[tf_key] = pd.DataFrame(rows)
+    # Fetch new transactions
+    if st.button("Fetch Transactions", key="fetch"):
+        service = init_gmail_service(str(creds_path))
+        rows = []
+        # Wise
+        wise_q = 'from:noreply@wise.com subject:"spent at"'
+        for msg in search_emails(service, wise_q, max_results=10):
+            d      = get_email_message_details(service, msg["id"])
+            dt_utc = parsedate_to_datetime(d["date"])
+            dt_sgt = dt_utc.astimezone(ZoneInfo("UTC"))
+            date_s = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            m = re.match(r"([\d.,]+)\s+([A-Z]{3}) spent at (.+)", d["subject"] or "")
+            if m:
+                amount, currency, merchant = m.group(1), m.group(2), m.group(3).rstrip('.')
+            else:
+                amount = currency = merchant = "N/A"
+            rows.append({
+                "Date":        date_s,
+                "Description": merchant,
+                "Amount":      amount,
+                "Currency":    currency,
+                "Source":      "Wise",
+                "Add?":        False
+            })
+        # Instarem
+        inst_q = 'from:donotreply@instarem.com subject:"Transaction successful"'
+        for msg in search_emails(service, inst_q, max_results=10):
+            d = get_email_message_details(service, msg["id"])
+            b = d["body"]
+            dtm     = re.search(r'Date,?\s*time\s*([^\n]+)', b, re.IGNORECASE)
+            raw_dt  = dtm.group(1).strip() if dtm else d["date"]
+            clean   = re.sub(r'(\d+)(st|nd|rd|th)', r'\1', raw_dt)
+            try:
+                parsed = date_parser.parse(clean)
+            except ValueError:
+                parsed = parsedate_to_datetime(d["date"])
+            if not parsed.tzinfo:
+                parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Singapore"))
+            dt_sgt  = parsed.astimezone(ZoneInfo("UTC"))
+            date_s  = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            me      = re.search(r'Merchant\s*([^\n]+)', b)
+            desc    = me.group(1).strip() if me else "N/A"
+            pa      = re.search(r'Amount paid\s*([\d.,]+\s+[A-Z]{3})', b)
+            paid    = pa.group(1).strip() if pa else ""
+            if paid and " " in paid:
+                amount, currency = paid.rsplit(" ", 1)
+            else:
+                amount = currency = "N/A"
+            rows.append({
+                "Date":        date_s,
+                "Description": desc,
+                "Amount":      amount,
+                "Currency":    currency,
+                "Source":      "Instarem",
+                "Add?":        False
+            })
+        st.session_state[tf_key] = pd.DataFrame(rows)
 
-# Display fetched, apply filters, and handle adding
-if not st.session_state[tf_key].empty:
-    st.markdown("**Fetched Transactions**")
-    df_fetched = st.session_state[tf_key].copy()
-    # Convert Date column to datetime for filtering
-    dates = pd.to_datetime(df_fetched["Date"], errors="coerce", utc=True)
-    # Date range and Source filters side by side
-    min_date = dates.min().date()
-    max_date = dates.max().date()
-    start_default = max(min_date, max_date - timedelta(days=7))
+    # Display fetched, apply filters, and handle adding
+    if not st.session_state[tf_key].empty:
+        st.markdown("**Fetched Transactions**")
+        df_fetched = st.session_state[tf_key].copy()
+        # Convert Date column to datetime for filtering
+        dates = pd.to_datetime(df_fetched["Date"], errors="coerce", utc=True)
+        # Date range and Source filters side by side
+        min_date = dates.min().date()
+        max_date = dates.max().date()
+        start_default = max(min_date, max_date - timedelta(days=7))
 
-    col1, col2 = st.columns(2)
-    with col1:
-        date_range = st.date_input("Filter by date", [start_default, max_date], key="date_range")
-        # Ensure two dates are selected
-        if not isinstance(date_range, (list, tuple)) or len(date_range) != 2:
-            st.error("Please select both a start **and** end date for filtering.")
-            # Stop further execution of this block
-            st.stop()
-    with col2:
-        sources = ['All'] + sorted(df_fetched['Source'].unique().tolist())
-        selected_source = st.selectbox("Filter by source", sources, key="source_filter")
-    # Apply date filter
-    mask_date = (dates.dt.date >= date_range[0]) & (dates.dt.date <= date_range[1])
-    df_fetched = df_fetched.loc[mask_date]
-    # Apply source filter
-    if selected_source != 'All':
-        df_fetched = df_fetched[df_fetched['Source'] == selected_source]
+        col1, col2 = st.columns(2)
+        with col1:
+            date_range = st.date_input("Filter by date", [start_default, max_date], key="date_range")
+            # Ensure two dates are selected
+            if not isinstance(date_range, (list, tuple)) or len(date_range) != 2:
+                st.error("Please select both a start **and** end date for filtering.")
+                # Stop further execution of this block
+                st.stop()
+        with col2:
+            sources = ['All'] + sorted(df_fetched['Source'].unique().tolist())
+            selected_source = st.selectbox("Filter by source", sources, key="source_filter")
+        # Apply date filter
+        mask_date = (dates.dt.date >= date_range[0]) & (dates.dt.date <= date_range[1])
+        df_fetched = df_fetched.loc[mask_date]
+        # Apply source filter
+        if selected_source != 'All':
+            df_fetched = df_fetched[df_fetched['Source'] == selected_source]
 
-    # Show editable table
-    df_fetched = df_fetched.sort_values("Date", ascending=False)
-    edited = st.data_editor(
-        df_fetched,
-        column_config={"Add?": st.column_config.CheckboxColumn("Add to Raw")},
-        hide_index=True,
-        use_container_width=True
-    )
-    # Add selected transactions into db
-    if st.button("Add Selected to Raw Transactions", key="add"):
-        # 1) Grab only the user-checked rows
-        to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
-        if to_add.empty:
-            st.info("No transactions selected for adding.")
-        else:
-            # 2) Load existing raw table & normalize
-            raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
-            raw["Date"] = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            raw["Amount"] = raw["Amount"].astype(float)
+        # Show editable table
+        df_fetched = df_fetched.sort_values("Date", ascending=False)
+        edited = st.data_editor(
+            df_fetched,
+            column_config={"Add?": st.column_config.CheckboxColumn("Add to Raw")},
+            hide_index=True,
+            use_container_width=True
+        )
+        # Add selected transactions into db
+        if st.button("Add Selected to Raw Transactions", key="add"):
+            # 1) Grab only the user-checked rows
+            to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
+            if to_add.empty:
+                st.info("No transactions selected for adding.")
+            else:
+                # 2) Load existing raw table & normalize
+                raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
+                raw["Date"] = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                raw["Amount"] = raw["Amount"].astype(float)
 
-            to_add["Date"]   = pd.to_datetime(to_add["Date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            to_add["Amount"] = to_add["Amount"].astype(float)
+                to_add["Date"]   = pd.to_datetime(to_add["Date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                to_add["Amount"] = to_add["Amount"].astype(float)
 
-            # 3) Anti-join to split new vs duplicates
-            merged = to_add.merge(
-                raw,
-                on=["Date","Description","Amount","Currency","Source"],
-                how="left",
-                indicator=True
-            )
+                # 3) Anti-join to split new vs duplicates
+                merged = to_add.merge(
+                    raw,
+                    on=["Date","Description","Amount","Currency","Source"],
+                    how="left",
+                    indicator=True
+                )
 
-            new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
-            dup_rows = merged[merged["_merge"] == "both"].drop(columns=["_merge"])
+                new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+                dup_rows = merged[merged["_merge"] == "both"].drop(columns=["_merge"])
 
-            # 4) Insert only the new ones
-            total = 0
-            if not new_rows.empty:
-                for source, group in new_rows.groupby("Source"):
-                    save_to_db(group.drop(columns=["Source"]), source)
-                    total += len(group)
+                # 4) Insert only the new ones
+                total = 0
+                if not new_rows.empty:
+                    for source, group in new_rows.groupby("Source"):
+                        save_to_db(group.drop(columns=["Source"]), source)
+                        total += len(group)
 
-            # 5) Feedback & tables
-            if not new_rows.empty:
-                st.success(f"Added {total} new transaction{'s' if total>1 else ''}:")
-                st.dataframe(new_rows, use_container_width=True)
+                # 5) Feedback & tables
+                if not new_rows.empty:
+                    st.success(f"Added {total} new transaction{'s' if total>1 else ''}:")
+                    st.dataframe(new_rows, use_container_width=True)
 
-            if not dup_rows.empty:
-                st.warning(f"Skipped {len(dup_rows)} duplicate{'s' if len(dup_rows)>1 else ''}:")
-                st.dataframe(dup_rows, use_container_width=True)
+                if not dup_rows.empty:
+                    st.warning(f"Skipped {len(dup_rows)} duplicate{'s' if len(dup_rows)>1 else ''}:")
+                    st.dataframe(dup_rows, use_container_width=True)
 
-            # 6) Preserve checkbox state
-            st.session_state[tf_key]["Add?"] = edited["Add?"]
+                # 6) Preserve checkbox state
+                st.session_state[tf_key]["Add?"] = edited["Add?"]
 
 
 # ───────── Manual Transactions ───────────────────────────────────────────────
