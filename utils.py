@@ -3,6 +3,7 @@ import streamlit as st
 from supabase import Client, create_client
 from monopoly_parse import parse_pdf
 
+RECUR_FILE = "recurring.json"
 CATEGORY_FILE = "categories.json"
 
 @st.cache_resource(show_spinner=False)
@@ -88,3 +89,17 @@ def categorize_transactions(df: pd.DataFrame) -> pd.DataFrame:
         mask = df["Description"].str.lower().str.strip().isin(lowered)
         df.loc[mask, "Category"] = cat
     return df
+
+def init_recurring():
+    """Load recurring transactions into session state."""
+    try:
+        with open(RECUR_FILE, "r") as f:
+            st.session_state.recurring = json.load(f)
+    except FileNotFoundError:
+        st.session_state.recurring = []
+
+def save_recurring():
+    """Write session_state.recurring back to recurring.json."""
+    with open(RECUR_FILE, "w") as f:
+        json.dump(st.session_state.recurring, f, indent=2)
+
