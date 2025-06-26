@@ -242,7 +242,7 @@ with st.expander("Add one-off transactions manually", expanded=False):
         )
 
         # 4) Add selected into your DB with dedupe logic
-        if st.button("Add Selected Manual to Raw", key="add_manual"):
+        if st.button("Add Selected to Raw Transactions", key="add_manual"):
             to_add = edited_manual.loc[edited_manual["Add?"]].drop(columns=["Add?"])
             if to_add.empty:
                 st.info("No manual rows selected to add.")
