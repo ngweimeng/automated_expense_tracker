@@ -203,7 +203,7 @@ with st.expander("Add one-off transactions manually", expanded=False):
         desc = st.text_input("Description")
         amt  = st.number_input("Amount", min_value=0.0, format="%.2f")
         curr = st.selectbox("Currency", ["EUR","SGD","USD","GBP"])
-        submitted = st.form_submit_button("Add to Manual Buffer")
+        submitted = st.form_submit_button("Add to Manual Staging")
         if submitted:
             st.session_state["manual_df"] = pd.concat([
                 st.session_state["manual_df"],
