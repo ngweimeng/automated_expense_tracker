@@ -182,6 +182,9 @@ if not st.session_state[tf_key].empty:
             # 6) Preserve checkbox state
             st.session_state[tf_key]["Add?"] = edited["Add?"]
 
+st.write("✅ manual section should be here")
+
+
 # ───────── Manual Transactions ───────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📝 Manual Transactions")
