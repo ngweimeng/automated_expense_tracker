@@ -200,7 +200,7 @@ with st.form("manual_entry", clear_on_submit=True):
     dt = datetime.datetime.combine(date_val, time_val)
     desc = st.text_input("Description")
     amt  = st.number_input("Amount", min_value=0.0, format="%.2f")
-    curr = st.text_input("Currency", max_chars=3, value="EUR")
+    curr = st.selectbox("Currency", ["EUR","SGD","USD","GBP"])
     submitted = st.form_submit_button("Add to Manual Buffer")
     if submitted:
         st.session_state["manual_df"] = pd.concat([
@@ -209,7 +209,7 @@ with st.form("manual_entry", clear_on_submit=True):
                 "Date":        dt,
                 "Description": desc,
                 "Amount":      amt,
-                "Currency":    curr.upper(),
+                "Currency":    curr,
                 "Source":      "Manual",
                 "Add?":        False
             }])
