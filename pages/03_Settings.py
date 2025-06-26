@@ -131,39 +131,23 @@ if not st.session_state[tf_key].empty:
         hide_index=True,
         use_container_width=True
     )
-        # Add selected with dedupe
+    # Add selected transactions directly without deduplication
     if st.button("Add Selected to Raw Transactions", key="add"):
         to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
         if to_add.empty:
             st.info("No transactions selected for adding.")
         else:
-            # Reload raw transactions and normalize keys
-            raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
-            # Normalize Date formatting to match fetched
-            raw["Date"] = pd.to_datetime(raw["Date"], errors='coerce').dt.strftime("%Y-%m-%d %H:%M:%S")
-            # Normalize Date in to_add
+            # Normalize Date formatting and Amount to string
             to_add["Date"] = pd.to_datetime(to_add["Date"], errors='coerce').dt.strftime("%Y-%m-%d %H:%M:%S")
-            # Normalize Amount to string
-            raw["Amount"] = raw["Amount"].astype(str)
             to_add["Amount"] = to_add["Amount"].astype(str)
 
-            merged = to_add.merge(
-                raw,
-                on=["Date","Description","Amount","Currency","Source"],
-                how="left",
-                indicator=True
-            )
-            new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
-            dup_count = len(to_add) - len(new_rows)
-            if not new_rows.empty:
-                total = 0
-                for source, group in new_rows.groupby("Source"):
-                    save_to_db(group.drop(columns=["Source"]), source)
-                    total += len(group)
-                st.success(f"Added {total} new transactions.")
-            if dup_count:
-                st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
-            st.session_state[tf_key] = st.session_state[tf_key].loc[~edited["Add?"]]
+            total = 0
+            for source, group in to_add.groupby("Source"):
+                save_to_db(group.drop(columns=["Source"]), source)
+                total += len(group)
+
+            st.success(f"Added {total} transactions.")
+            st.session_state[tf_key]["Add?"] = edited["Add?"]
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
 st.markdown("---")
