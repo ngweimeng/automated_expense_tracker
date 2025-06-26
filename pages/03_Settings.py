@@ -132,46 +132,46 @@ if not st.session_state[tf_key].empty:
         hide_index=True,
         use_container_width=True
     )
-# Add selected transactions into db
-if st.button("Add Selected to Raw Transactions", key="add"):
-    # 1) Grab only the user-checked rows
-    to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
-    if to_add.empty:
-        st.info("No transactions selected for adding.")
-    else:
-        # 2) Load your existing raw table
-        raw = load_from_db()[["date","description","amount","currency","source"]]
-        
-        # 3) Normalize formats on both sides
-        for df in (raw, to_add):
-            df["Date"]   = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S")
-            df["Amount"] = df["Amount"].astype(str)
-        
-        # 4) Do an anti-join: keep only rows not already in raw
-        merged = to_add.merge(
-            raw,
-            on=["Date","Description","Amount","Currency","Source"],
-            how="left",
-            indicator=True
-        )
-        new_rows  = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
-        dup_count = len(to_add) - len(new_rows)
+    # Add selected transactions into db
+    if st.button("Add Selected to Raw Transactions", key="add"):
+        # 1) Grab only the user-checked rows
+        to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
+        if to_add.empty:
+            st.info("No transactions selected for adding.")
+        else:
+            # 2) Load your existing raw table
+            raw = load_from_db()[["date","description","amount","currency","source"]]
+            
+            # 3) Normalize formats on both sides
+            for df in (raw, to_add):
+                df["Date"]   = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S")
+                df["Amount"] = df["Amount"].astype(str)
+            
+            # 4) Do an anti-join: keep only rows not already in raw
+            merged = to_add.merge(
+                raw,
+                on=["Date","Description","Amount","Currency","Source"],
+                how="left",
+                indicator=True
+            )
+            new_rows  = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+            dup_count = len(to_add) - len(new_rows)
 
-        # 5) Save only the new rows
-        total = 0
-        if not new_rows.empty:
-            for source, group in new_rows.groupby("Source"):
-                save_to_db(group.drop(columns=["Source"]), source)
-                total += len(group)
+            # 5) Save only the new rows
+            total = 0
+            if not new_rows.empty:
+                for source, group in new_rows.groupby("Source"):
+                    save_to_db(group.drop(columns=["Source"]), source)
+                    total += len(group)
 
-        # 6) Feedback to user
-        if total:
-            st.success(f"Added {total} new transaction{'s' if total>1 else ''}.")
-        if dup_count:
-            st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
+            # 6) Feedback to user
+            if total:
+                st.success(f"Added {total} new transaction{'s' if total>1 else ''}.")
+            if dup_count:
+                st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
 
-        # 7) Keep the checkboxes as they were
-        st.session_state[tf_key]["Add?"] = edited["Add?"]
+            # 7) Keep the checkboxes as they were
+            st.session_state[tf_key]["Add?"] = edited["Add?"]
 
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
