@@ -216,7 +216,7 @@ with st.expander("Add one-off transactions manually", expanded=False):
                     "Add?":        False
                 }])
             ], ignore_index=True)
-            st.success("Added to manual buffer.")
+            st.success("Added to manual staging.")
 
     # 3) Display buffer with Add? checkboxes
     if not st.session_state["manual_df"].empty:
