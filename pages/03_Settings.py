@@ -4,6 +4,8 @@ import pandas as pd
 import re
 import streamlit as st
 from pathlib import Path
+from datetime import timedelta
+
 
 from gmail_api import init_gmail_service, get_email_message_details, search_emails
 from utils import load_from_db, save_to_db, categorize_transactions, init_categories, save_categories
@@ -106,10 +108,11 @@ if not st.session_state[tf_key].empty:
     # Date range and Source filters side by side
     min_date = dates.min().date()
     max_date = dates.max().date()
+    start_default = max(min_date, max_date - timedelta(days=7))
 
     col1, col2 = st.columns(2)
     with col1:
-        date_range = st.date_input("Filter by date", [min_date, max_date], key="date_range")
+        date_range = st.date_input("Filter by date", [start_default, max_date], key="date_range")
         # Ensure two dates are selected
         if not isinstance(date_range, (list, tuple)) or len(date_range) != 2:
             st.error("Please select both a start **and** end date for filtering.")
