@@ -55,7 +55,7 @@ with control_col:
     elif filter_type == "Month":
         df["Month"] = df["Date"].dt.to_period("M").astype(str)
         months = sorted(df["Month"].unique())
-        selected = st.multiselect("Select month(s)", months, default=[months[-2]])
+        selected = st.multiselect("Select month(s)", months, default=[months[-1]])
         filtered = df[df["Month"].isin(selected)]
         if selected:
             first, last = min(selected), max(selected)
