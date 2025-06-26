@@ -16,7 +16,7 @@ from email.utils import parsedate_to_datetime
 # Page config
 st.set_page_config(page_title="Settings", page_icon="⚙️")
 st.title("💰 WeiMeng's Budget Tracker")
-st.markdown("## *Settings*")
+st.markdown("## *Configuration*")
 
 # Initialize categories
 init_categories()
