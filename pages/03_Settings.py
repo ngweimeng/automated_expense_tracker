@@ -125,6 +125,7 @@ if not st.session_state[tf_key].empty:
         df_fetched = df_fetched[df_fetched['Source'] == selected_source]
 
     # Show editable table
+    df_fetched = df_fetched.sort_values("Date", ascending=False)
     edited = st.data_editor(
         df_fetched,
         column_config={"Add?": st.column_config.CheckboxColumn("Add to Raw")},
