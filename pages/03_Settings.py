@@ -76,7 +76,7 @@ if st.button("Fetch Transactions", key="fetch"):
         except ValueError:
             parsed = parsedate_to_datetime(d["date"])
         if not parsed.tzinfo:
-            parsed = parsed.replace(tzinfo=ZoneInfo("Europe/Luxembourg"))
+            parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Singapore"))
         dt_sgt  = parsed.astimezone(ZoneInfo("Europe/Luxembourg"))
         date_s  = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
         me      = re.search(r'Merchant\s*([^\n]+)', b)
