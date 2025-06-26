@@ -48,7 +48,7 @@ if st.button("Fetch Transactions", key="fetch"):
     for msg in search_emails(service, wise_q, max_results=10):
         d      = get_email_message_details(service, msg["id"])
         dt_utc = parsedate_to_datetime(d["date"])
-        dt_sgt = dt_utc.astimezone(ZoneInfo("Europe/Luxembourg"))
+        dt_sgt = dt_utc.astimezone(ZoneInfo("Asia/Singapore"))
         date_s = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
         m = re.match(r"([\d.,]+)\s+([A-Z]{3}) spent at (.+)", d["subject"] or "")
         if m:
@@ -76,8 +76,8 @@ if st.button("Fetch Transactions", key="fetch"):
         except ValueError:
             parsed = parsedate_to_datetime(d["date"])
         if not parsed.tzinfo:
-            parsed = parsed.replace(tzinfo=ZoneInfo("Europe/Luxembourg"))
-        dt_sgt  = parsed.astimezone(ZoneInfo("Europe/Luxembourg"))
+            parsed = parsed.replace(tzinfo=ZoneInfo("Asia/Singapore"))
+        dt_sgt  = parsed.astimezone(ZoneInfo("Asia/Singapore"))
         date_s  = dt_sgt.strftime("%Y-%m-%d %H:%M:%S %Z")
         me      = re.search(r'Merchant\s*([^\n]+)', b)
         desc    = me.group(1).strip() if me else "N/A"
