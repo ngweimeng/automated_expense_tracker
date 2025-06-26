@@ -138,10 +138,6 @@ if not st.session_state[tf_key].empty:
         if to_add.empty:
             st.info("No transactions selected for adding.")
         else:
-            # Normalize Date formatting and Amount to string
-            #to_add["Date"] = pd.to_datetime(to_add["Date"], errors='coerce').dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            #to_add["Amount"] = to_add["Amount"].astype(str)
-
             total = 0
             for source, group in to_add.groupby("Source"):
                 save_to_db(group.drop(columns=["Source"]), source)
@@ -153,6 +149,11 @@ if not st.session_state[tf_key].empty:
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
 st.markdown("---")
 raw_df = load_from_db()
+raw_df["Date"] = (
+    pd.to_datetime(raw_df["Date"], utc=True)     
+      .dt.tz_convert("Europe/Luxembourg")     # convert to CET/CEST automatically
+      .dt.tz_localize(None)                
+)
 cat_df = categorize_transactions(raw_df)
 if "Date" in cat_df: cat_df["Date"] = pd.to_datetime(cat_df["Date"], errors='coerce')
 if not cat_df.empty:
