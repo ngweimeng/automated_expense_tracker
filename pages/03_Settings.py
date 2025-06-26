@@ -208,7 +208,7 @@ if not cat_df.empty:
             if new != old and desc not in st.session_state.categories.get(new, []):
                 st.session_state.categories.setdefault(new, []).append(desc)
         save_categories()
-        st.experimental_rerun()
+        st.rerun()
 else:
     st.info("No transactions available.")
 
