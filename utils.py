@@ -32,27 +32,42 @@ def load_from_db() -> pd.DataFrame:
 
 def save_to_db(df: pd.DataFrame, source_name: str) -> int:
     sb = get_supabase()
-    resp = sb.table("transactions")\
-             .select("date, description, amount, currency, source")\
-             .execute()
+    resp = (
+        sb.table("transactions")
+          .select("Date,Description,Amount,Currency,Source")
+          .execute()
+    )
     existing = resp.data or []
     existing_set = {
-        (r["date"], r["description"], float(r["amount"]), r["currency"], r["source"])
+        (
+            r["Date"],
+            r["Description"],
+            float(r["Amount"]),
+            r["Currency"],
+            r["Source"],
+        )
         for r in existing
     }
     to_insert = []
     for _, row in df.iterrows():
-        key = (row["Date"], row["Description"], float(row["Amount"]), row["Currency"], source_name)
+        key = (
+            row["Date"],
+            row["Description"],
+            float(row["Amount"]),
+            row["Currency"],
+            source_name,
+        )
         if key not in existing_set:
             to_insert.append({
-                "date": row["Date"],
-                "description": row["Description"],
-                "amount": row["Amount"],
-                "currency": row["Currency"],
-                "source": source_name,
+                "Date":        row["Date"],
+                "Description": row["Description"],
+                "Amount":      row["Amount"],
+                "Currency":    row["Currency"],
+                "Source":      source_name,
             })
     if not to_insert:
         return 0
+
     sb.table("transactions").insert(to_insert).execute()
     return len(to_insert)
 
