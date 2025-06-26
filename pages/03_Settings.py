@@ -152,7 +152,7 @@ raw_df = load_from_db()
 raw_df["Date"] = (
     pd.to_datetime(raw_df["Date"], utc=True)     
       .dt.tz_convert("Europe/Luxembourg")     # convert to CET/CEST automatically
-      .dt.tz_localize(None)                
+#     .dt.tz_localize(None)                
 )
 cat_df = categorize_transactions(raw_df)
 if "Date" in cat_df: cat_df["Date"] = pd.to_datetime(cat_df["Date"], errors='coerce')
