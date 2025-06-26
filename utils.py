@@ -15,18 +15,16 @@ def load_from_db() -> pd.DataFrame:
     sb = get_supabase()
     resp = (
         sb.table("transactions")
-          .select("date, description, amount, currency, source")
-          .order("date")
+          .select("Date, Description, Amount, Currency, Source")
+          .order("Date", desc=True)
           .execute()
     )
     data = resp.data or []
     cols = ["Date", "Description", "Amount", "Currency", "Source"]
     if not data:
         return pd.DataFrame(columns=cols)
-    df = pd.DataFrame(data).rename(columns={
-        "date":"Date", "description":"Description",
-        "amount":"Amount", "currency":"Currency", "source":"Source"
-    })
+    # Build DataFrame
+    df = pd.DataFrame(data)
     for c in cols:
         if c not in df.columns:
             df[c] = pd.NA
