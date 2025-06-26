@@ -185,8 +185,9 @@ if not st.session_state[tf_key].empty:
 
 # ───────── Manual Transactions ───────────────────────────────────────────────
 st.markdown("---")
-with st.expander("📝 Manual Transactions", expanded=False):
+st.subheader("📝 Manual Transactions")
 
+with st.expander("Click here to add transaction manually", expanded=False):
     # 1) Session‐state buffer for manual entries
     if "manual_df" not in st.session_state:
         st.session_state["manual_df"] = pd.DataFrame(
