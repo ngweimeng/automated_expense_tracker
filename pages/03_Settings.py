@@ -140,7 +140,7 @@ if not st.session_state[tf_key].empty:
             st.info("No transactions selected for adding.")
         else:
             # 2) Load your existing raw table
-            raw = load_from_db()[["date","description","amount","currency","source"]]
+            raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
             
             # 3) Normalize formats on both sides
             for df in (raw, to_add):
