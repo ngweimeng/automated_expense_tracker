@@ -149,7 +149,7 @@ if not st.session_state[tf_key].empty:
             
             # 3) Normalize formats on both sides
             for df in (raw, to_add):
-            #    df["Date"]   = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S")
+                df["Date"]   = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S")
                 df["Amount"] = df["Amount"].astype(float)
             
             # 4) Do an anti-join: keep only rows not already in raw
