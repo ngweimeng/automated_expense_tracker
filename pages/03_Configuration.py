@@ -241,15 +241,16 @@ with st.expander("Add one-off transactions manually", expanded=False):
             use_container_width=True
         )
 
-        # 4) Add selected into your DB with dedupe logic
-        if st.button("Add Selected to Raw Transactions", key="add_manual"):
+        # 4) Add selected into DB with dedupe logic
+        if st.button("Add Selected Manual to Raw", key="add_manual"):
             to_add = edited_manual.loc[edited_manual["Add?"]].drop(columns=["Add?"])
             if to_add.empty:
                 st.info("No manual rows selected to add.")
             else:
                 # load existing for dedupe
                 raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
-                raw["Date"]   = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                raw["Date"]   = pd.to_datetime(raw["Date"], utc=True) \
+                                  .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
                 raw["Amount"] = raw["Amount"].astype(float)
 
                 merged = to_add.merge(
@@ -268,16 +269,22 @@ with st.expander("Add one-off transactions manually", expanded=False):
                         save_to_db(grp.drop(columns=["Source"]), source)
                         total += len(grp)
 
-                # feedback + listing
+                # feedback + listings
                 if total:
                     st.success(f"Added {total} manual transaction{'s' if total>1 else ''}:")
                     st.dataframe(new_rows, use_container_width=True)
                 if dup_count:
                     st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
 
-                # remove added from buffer so they don’t show up again
-                kept = edited_manual.loc[~edited_manual["Add?"]].drop(columns=["Add?"])
+                # 5) Rebuild the buffer from the edited copy, keeping only unchecked rows
+                mask = ~edited_manual["Add?"]                    # boolean mask
+                kept = edited_manual.loc[mask].copy()            # filter rows
+                # note: no need to drop then re-add "Add?" – just reset it
+                kept["Add?"] = False
                 st.session_state["manual_df"] = kept.reset_index(drop=True)
+
+                # optional: force a rerun to refresh UI immediately
+                st.rerun()
 
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
