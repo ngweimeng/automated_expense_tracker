@@ -35,9 +35,9 @@ token_file.write_text(st.secrets["gmail"]["token"])
 
 # ───────── Fetch & Add Transactions ───────────────────────────────────────────
 st.markdown("---")
-st.subheader("📨 Step 1: Fetch Wise & Instarem Transactions")
+st.subheader("📨 Step 1: Automatic Import")
 
-with st.expander("Fetch transactions automatically (Wise & Instarem only) via GMail API", expanded=False):
+with st.expander("Fetch transactions automatically via GMail API (Wise & Instarem only)", expanded=False):
     # Session storage key for fetched transactions
     tf_key = "fetched_df"
     if tf_key not in st.session_state:
