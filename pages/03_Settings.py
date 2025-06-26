@@ -140,42 +140,42 @@ if not st.session_state[tf_key].empty:
         if to_add.empty:
             st.info("No transactions selected for adding.")
         else:
-            # 2) Load your existing raw table
+            # 2) Load existing raw table & normalize
             raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
-            raw["Date"] = (
-                pd.to_datetime(raw["Date"], utc=True)     
-            #    .dt.tz_convert("Europe/Luxembourg")     # convert to CET/CEST automatically
-            )
-            
-            # 3) Normalize formats on both sides
-            for df in (raw, to_add):
-                df["Date"]   = pd.to_datetime(df["Date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-                df["Amount"] = df["Amount"].astype(float)
-            
-            # 4) Do an anti-join: keep only rows not already in raw
+            raw["Date"] = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            raw["Amount"] = raw["Amount"].astype(float)
+
+            to_add["Date"]   = pd.to_datetime(to_add["Date"], errors="coerce").dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            to_add["Amount"] = to_add["Amount"].astype(float)
+
+            # 3) Anti-join to split new vs duplicates
             merged = to_add.merge(
                 raw,
                 on=["Date","Description","Amount","Currency","Source"],
                 how="left",
                 indicator=True
             )
-            new_rows  = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
-            dup_count = len(to_add) - len(new_rows)
 
-            # 5) Save only the new rows
+            new_rows = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+            dup_rows = merged[merged["_merge"] == "both"].drop(columns=["_merge"])
+
+            # 4) Insert only the new ones
             total = 0
             if not new_rows.empty:
                 for source, group in new_rows.groupby("Source"):
                     save_to_db(group.drop(columns=["Source"]), source)
                     total += len(group)
 
-            # 6) Feedback to user
-            if total:
-                st.success(f"Added {total} new transaction{'s' if total>1 else ''}.")
-            if dup_count:
-                st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
+            # 5) Feedback & tables
+            if not new_rows.empty:
+                st.success(f"Added {total} new transaction{'s' if total>1 else ''}:")
+                st.dataframe(new_rows, use_container_width=True)
 
-            # 7) Keep the checkboxes as they were
+            if not dup_rows.empty:
+                st.warning(f"Skipped {len(dup_rows)} duplicate{'s' if len(dup_rows)>1 else ''}:")
+                st.dataframe(dup_rows, use_container_width=True)
+
+            # 6) Preserve checkbox state
             st.session_state[tf_key]["Add?"] = edited["Add?"]
 
 
