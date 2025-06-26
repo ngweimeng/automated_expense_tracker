@@ -45,7 +45,7 @@ if st.button("Fetch Transactions", key="fetch"):
     rows = []
     # Wise
     wise_q = 'from:noreply@wise.com subject:"spent at"'
-    for msg in search_emails(service, wise_q, max_results=5):
+    for msg in search_emails(service, wise_q, max_results=10):
         d      = get_email_message_details(service, msg["id"])
         dt_utc = parsedate_to_datetime(d["date"])
         dt_sgt = dt_utc.astimezone(ZoneInfo("Asia/Singapore"))
@@ -65,7 +65,7 @@ if st.button("Fetch Transactions", key="fetch"):
         })
     # Instarem
     inst_q = 'from:donotreply@instarem.com subject:"Transaction successful"'
-    for msg in search_emails(service, inst_q, max_results=6):
+    for msg in search_emails(service, inst_q, max_results=10):
         d = get_email_message_details(service, msg["id"])
         b = d["body"]
         dtm     = re.search(r'Date,?\s*time\s*([^\n]+)', b, re.IGNORECASE)
@@ -131,15 +131,15 @@ if not st.session_state[tf_key].empty:
         hide_index=True,
         use_container_width=True
     )
-    # Add selected transactions directly without deduplication
+    # Add selected transactions into db
     if st.button("Add Selected to Raw Transactions", key="add"):
         to_add = edited.loc[edited["Add?"]].drop(columns=["Add?"])
         if to_add.empty:
             st.info("No transactions selected for adding.")
         else:
             # Normalize Date formatting and Amount to string
-            to_add["Date"] = pd.to_datetime(to_add["Date"], errors='coerce').dt.strftime("%Y-%m-%d %H:%M:%S")
-            to_add["Amount"] = to_add["Amount"].astype(str)
+            #to_add["Date"] = pd.to_datetime(to_add["Date"], errors='coerce').dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            #to_add["Amount"] = to_add["Amount"].astype(str)
 
             total = 0
             for source, group in to_add.groupby("Source"):
