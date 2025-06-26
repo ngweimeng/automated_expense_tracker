@@ -284,7 +284,7 @@ with st.expander("Add one-off transactions manually", expanded=False):
                 st.session_state["manual_df"] = kept.reset_index(drop=True)
 
                 # optional: force a rerun to refresh UI immediately
-                st.rerun()
+                #st.rerun()
 
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
