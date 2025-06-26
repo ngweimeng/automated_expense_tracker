@@ -35,9 +35,9 @@ token_file.write_text(st.secrets["gmail"]["token"])
 
 # ───────── Fetch & Add Transactions ───────────────────────────────────────────
 st.markdown("---")
-st.subheader("📨 Fetch Wise & Instarem Transactions")
+st.subheader("📨 Step 1: Fetch Wise & Instarem Transactions")
 
-with st.expander("Click here to fetch transaction automatically (Wise & Instarem only)", expanded=False):
+with st.expander("Fetch transactions automatically (Wise & Instarem only) via GMail API", expanded=False):
     # Session storage key for fetched transactions
     tf_key = "fetched_df"
     if tf_key not in st.session_state:
@@ -186,9 +186,9 @@ with st.expander("Click here to fetch transaction automatically (Wise & Instarem
 
 # ───────── Manual Transactions ───────────────────────────────────────────────
 st.markdown("---")
-st.subheader("📝 Manual Transactions")
+st.subheader("📝 Step 2: Manual Entry")
 
-with st.expander("Click here to add transaction manually", expanded=False):
+with st.expander("Add one-off transactions manually", expanded=False):
     # 1) Session‐state buffer for manual entries
     if "manual_df" not in st.session_state:
         st.session_state["manual_df"] = pd.DataFrame(
