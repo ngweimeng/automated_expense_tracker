@@ -187,13 +187,13 @@ if not st.session_state[tf_key].empty:
 st.markdown("---")
 st.subheader("📝 Manual Transactions")
 
-# initialize a buffer if not present
+# 1) Session‐state buffer for manual entries
 if "manual_df" not in st.session_state:
-    st.session_state.manual_df = pd.DataFrame(
-        columns=["Date","Description","Amount","Currency","Source","Add?","Remove?"]
+    st.session_state["manual_df"] = pd.DataFrame(
+        columns=["Date","Description","Amount","Currency","Source","Add?"]
     )
 
-# 1) ENTRY FORM
+# 2) Form to add into the buffer (not yet DB)
 with st.form("manual_entry", clear_on_submit=True):
     date_val = st.date_input("Date")
     time_val = st.time_input("Time")
@@ -201,53 +201,54 @@ with st.form("manual_entry", clear_on_submit=True):
     desc = st.text_input("Description")
     amt  = st.number_input("Amount", min_value=0.0, format="%.2f")
     curr = st.text_input("Currency", max_chars=3, value="EUR")
-    src  = st.selectbox("Source", ["Manual","Manual (Recurring)"])
     submitted = st.form_submit_button("Add to Manual Buffer")
     if submitted:
-        new_row = {
-            "Date":        dt,
-            "Description": desc,
-            "Amount":      amt,
-            "Currency":    curr.upper(),
-            "Source":      src,
-            "Add?":        False,
-            "Remove?":     False
-        }
-        st.session_state.manual_df = pd.concat(
-            [st.session_state.manual_df, pd.DataFrame([new_row])],
-            ignore_index=True
-        )
+        st.session_state["manual_df"] = pd.concat([
+            st.session_state["manual_df"],
+            pd.DataFrame([{
+                "Date":        dt,
+                "Description": desc,
+                "Amount":      amt,
+                "Currency":    curr.upper(),
+                "Source":      "Manual",
+                "Add?":        False
+            }])
+        ], ignore_index=True)
         st.success("Added to manual buffer.")
 
-# 2) SHOW BUFFER & CONTROLS
-if not st.session_state.manual_df.empty:
-    st.markdown("**Manual Entries Buffer**")
-    buf = st.session_state.manual_df.copy()
-    # (optional) convert to Luxembourg time for display
-    buf["Date"] = pd.to_datetime(buf["Date"], utc=True).dt.tz_convert("Europe/Luxembourg")
-    buf = buf.sort_values("Date", ascending=False)
+# 3) Display buffer with Add? checkboxes
+if not st.session_state["manual_df"].empty:
+    st.markdown("**Manual Transactions to Add**")
 
-    edited_buf = st.data_editor(
-        buf,
+    df_manual = st.session_state["manual_df"].copy()
+    # convert to UTC‐aware string for consistent dedupe
+    df_manual["Date"] = (
+        pd.to_datetime(df_manual["Date"], utc=True)
+          .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+    )
+    df_manual["Amount"] = df_manual["Amount"].astype(float)
+    # sort newest first
+    df_manual = df_manual.sort_values("Date", ascending=False)
+
+    edited_manual = st.data_editor(
+        df_manual,
         column_config={
-            "Add?":    st.column_config.CheckboxColumn("To Add"),
-            "Remove?": st.column_config.CheckboxColumn("To Remove")
+            "Add?": st.column_config.CheckboxColumn("Add to Raw")
         },
         hide_index=True,
         use_container_width=True
     )
 
-    # 3) ADD SELECTED TO DB
-    if st.button("Add Selected Manual → DB"):
-        to_add = edited_buf.loc[edited_buf["Add?"]].drop(columns=["Add?","Remove?"])
-        if not to_add.empty:
-            # reuse your anti-join + save_to_db logic:
+    # 4) Add selected into your DB with dedupe logic
+    if st.button("Add Selected Manual to Raw", key="add_manual"):
+        to_add = edited_manual.loc[edited_manual["Add?"]].drop(columns=["Add?"])
+        if to_add.empty:
+            st.info("No manual rows selected to add.")
+        else:
+            # load existing for dedupe
             raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
             raw["Date"]   = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
             raw["Amount"] = raw["Amount"].astype(float)
-
-            to_add["Date"]   = pd.to_datetime(to_add["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            to_add["Amount"] = to_add["Amount"].astype(float)
 
             merged = to_add.merge(
                 raw,
@@ -256,24 +257,25 @@ if not st.session_state.manual_df.empty:
                 indicator=True
             )
             new_rows = merged[merged["_merge"]=="left_only"].drop(columns=["_merge"])
-            for source, group in new_rows.groupby("Source"):
-                save_to_db(group.drop(columns=["Source"]), source)
-            st.success(f"Added {len(new_rows)} manual transaction(s).")
-        else:
-            st.info("No manual rows selected to add.")
+            dup_count = len(to_add) - len(new_rows)
 
-    # 4) REMOVE SELECTED FROM BUFFER
-    if st.button("Remove Selected from Buffer"):
-        to_remove_idx = edited_buf.loc[edited_buf["Remove?"]].index
-        if len(to_remove_idx):
-            st.session_state.manual_df = (
-                st.session_state.manual_df
-                  .drop(to_remove_idx)
-                  .reset_index(drop=True)
-            )
-            st.success(f"Removed {len(to_remove_idx)} row(s) from buffer.")
-        else:
-            st.info("No rows selected to remove.")
+            # save new ones
+            total = 0
+            if not new_rows.empty:
+                for source, grp in new_rows.groupby("Source"):
+                    save_to_db(grp.drop(columns=["Source"]), source)
+                    total += len(grp)
+
+            # feedback + listing
+            if total:
+                st.success(f"Added {total} manual transaction{'s' if total>1 else ''}:")
+                st.dataframe(new_rows, use_container_width=True)
+            if dup_count:
+                st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
+
+            # remove added from buffer so they don’t show up again
+            kept = edited_manual.loc[~edited_manual["Add?"]].drop(columns=["Add?"])
+            st.session_state["manual_df"] = kept.reset_index(drop=True)
 
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
