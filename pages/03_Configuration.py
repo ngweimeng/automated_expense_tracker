@@ -276,16 +276,6 @@ with st.expander("Add one-off transactions manually", expanded=False):
                 if dup_count:
                     st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
 
-                # 5) Rebuild the buffer from the edited copy, keeping only unchecked rows
-                mask = ~edited_manual["Add?"]                    # boolean mask
-                kept = edited_manual.loc[mask].copy()            # filter rows
-                # note: no need to drop then re-add "Add?" – just reset it
-                kept["Add?"] = False
-                st.session_state["manual_df"] = kept.reset_index(drop=True)
-
-                # optional: force a rerun to refresh UI immediately
-                #st.rerun()
-
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
 st.markdown("---")
