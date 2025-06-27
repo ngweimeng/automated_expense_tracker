@@ -50,6 +50,8 @@ with col2:
     other = "EUR" if display_currency == "SGD" else "SGD"
     rate  = get_fx_rate(other, display_currency)
     st.caption(f"1 {other} = {rate:.4f} {display_currency}")
+    st.write("🔍 FX response:", resp)
+
 
 # ── 4) Load & categorize your raw data ─────────────────────────────────────────
 df = load_from_db()
