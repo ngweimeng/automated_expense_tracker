@@ -3,6 +3,8 @@ import streamlit as st
 from supabase import Client, create_client
 from monopoly_parse import parse_pdf
 from typing import List, Dict
+from postgrest import APIError
+
 
 RECUR_FILE = "recurring.json"
 CATEGORY_FILE = "categories.json"
@@ -193,12 +195,16 @@ def delete_category(name: str) -> None:
 def upsert_keyword(category: str, keyword: str) -> None:
     sb = get_supabase()
     cat_id = upsert_category(category)
-    sb.table("category_keywords") \
-      .upsert(
-        {"Category_Id": cat_id, "Keyword": keyword},
-        on_conflict="category_keywords_Category_Id_Keyword_key"
-      ) \
-      .execute()
+
+    try:
+        sb.table("category_keywords") \
+          .insert({"Category_Id": cat_id, "Keyword": keyword}) \
+          .execute()
+    except APIError as e:
+        # Postgres unique‐violation is code 23505
+        if getattr(e, "code", "") == "23505":
+            return  # it already existed—no action needed
+        raise
 
 def delete_keyword(category: str, keyword: str) -> None:
     """Remove a specific keyword from a category."""
