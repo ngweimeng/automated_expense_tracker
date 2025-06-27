@@ -141,17 +141,32 @@ def load_category_list() -> List[str]:
 def load_keywords_for(category: str) -> pd.DataFrame:
     """Return a DataFrame of keywords for the given category."""
     sb = get_supabase()
+    # first fetch the category id
+    cat = (
+      sb.table("Categories")
+        .select("Id")
+        .eq("Name", category)
+        .execute()
+        .data or []
+    )
+    if not cat:
+        return pd.DataFrame(columns=["Keyword"])
+
+    cat_id = cat[0]["Id"]
     data = (
-      sb.table("category_keywords")
+      sb.table("category_keywords")   
         .select("Keyword")
-        .eq("Category_Id", 
-            sb.table("categories").select("Id").eq("Name", category).execute().data[0]["Id"]
-        )
+        .eq("Category_Id", cat_id)
         .order("Keyword")
         .execute()
-        .data
-    ) or []
-    return pd.DataFrame(data)
+        .data or []
+    )
+
+    df = pd.DataFrame(data)
+    # normalize column name to exactly "Keyword"
+    if "keyword" in df.columns:
+        df = df.rename(columns={"keyword": "Keyword"})
+    return df
 
 def upsert_category(name: str) -> int:
     """Create a new category if missing; return its Id."""
