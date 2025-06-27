@@ -63,7 +63,7 @@ if valid.empty:
 
 # ── Salary & Budgeting Segment ────────────────────────────────────────────────
 st.markdown("---")
-st.subheader(f"💼 {month_label} Salary & Budgeting")
+st.subheader(f"💼 {month_label}'s Salary & Budgeting")
 
 col_inc, col_bud = st.columns(2)
 
@@ -94,7 +94,7 @@ with col_bud:
 
 # ── This Month's Key Metrics ─────────────────────────────────────────────────
 st.markdown("---")
-st.subheader(f"📅 {month_label} Key Metrics")
+st.subheader(f"📅 {month_label}'s Key Metrics")
 
 # current month string
 today      = date.today()
