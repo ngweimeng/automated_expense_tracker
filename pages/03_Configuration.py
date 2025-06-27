@@ -383,7 +383,7 @@ st.markdown("---")
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("🔧 Manage Categories")
+    st.subheader("🔧 Step 4: Manage Categories")
     with st.expander("View/Add/Delete Present Categories", expanded=False):
 
         # 1) Show current categories
@@ -414,7 +414,7 @@ with col1:
             st.rerun()
 
 with col2:
-    st.subheader("🗝️ Manage Category Keywords")
+    st.subheader("🗝️ Step 5: Manage Category Keywords")
     with st.expander("View/Add/Delete Keywords/Descriptions in each Categories", expanded=False):
 
         # 1) Pick a category to view/edit its keywords
