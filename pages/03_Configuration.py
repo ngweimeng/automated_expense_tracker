@@ -216,11 +216,11 @@ with st.expander("Add one-off transactions manually", expanded=False):
                     "Add?":        False
                 }])
             ], ignore_index=True)
-            st.success("Added successfully")
+            st.success("Added successfully to Staging")
 
     # 3) Display buffer with Add? checkboxes
     if not st.session_state["manual_df"].empty:
-        st.markdown("**Manual Transactions to Add**")
+        st.markdown("**Manual Transactions in Staging**")
 
         df_manual = st.session_state["manual_df"].copy()
         # convert to UTC‐aware string for consistent dedupe
@@ -242,7 +242,7 @@ with st.expander("Add one-off transactions manually", expanded=False):
         )
 
         # 4) Add selected into DB with dedupe logic
-        if st.button("Add Selected Manual to Raw", key="add_manual"):
+        if st.button("Add from Staging to Raw", key="add_manual"):
             to_add = edited_manual.loc[edited_manual["Add?"]].drop(columns=["Add?"])
             if to_add.empty:
                 st.info("No manual rows selected to add.")
