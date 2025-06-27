@@ -419,6 +419,7 @@ if selected:
     st.write(f"**Keywords in '{selected}':**")
     if not kw_df.empty:
         st.dataframe(kw_df, use_container_width=True)
+        st.write("🔍 kw_df debug:", kw_df)
     else:
         st.info("No keywords defined for this category.")
 
@@ -428,12 +429,15 @@ if selected:
         if st.form_submit_button("Add Keyword") and new_kw:
             upsert_keyword(selected, new_kw)
             st.success(f"Added keyword '{new_kw}' to '{selected}'")
+            st.write("🔍kw debug:", new_kw)
             st.rerun()
 
     # 3) Delete selected keywords
     to_del_kw = st.multiselect(
         "Remove keywords", options=kw_df["Keyword"].tolist()
     )
+    st.write("🔍 to_del_kw debug:", to_del_kw)
+    
     if st.button("Delete Selected Keywords") and to_del_kw:
         for kw in to_del_kw:
             delete_keyword(selected, kw)
