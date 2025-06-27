@@ -395,7 +395,7 @@ with st.form("add_category", clear_on_submit=True):
     if st.form_submit_button("Create Category") and new_cat:
         upsert_category(new_cat)
         st.success(f"Created category '{new_cat}'")
-        st.experimental_rerun()
+        st.rerun()
 
 # 3) Delete selected categories
 to_del = st.multiselect(
@@ -406,7 +406,7 @@ if st.button("Delete Selected Categories") and to_del:
     for cat in to_del:
         delete_category(cat)
     st.success(f"Deleted {len(to_del)} category(ies).")
-    st.experimental_rerun()
+    st.rerun()
 
 # ───────── Manage Keywords ────────────────────────────────────────────────────
 st.markdown("---")
@@ -428,7 +428,7 @@ if selected:
         if st.form_submit_button("Add Keyword") and new_kw:
             upsert_keyword(selected, new_kw)
             st.success(f"Added keyword '{new_kw}' to '{selected}'")
-            st.experimental_rerun()
+            st.rerun()
 
     # 3) Delete selected keywords
     to_del_kw = st.multiselect(
@@ -438,7 +438,7 @@ if selected:
         for kw in to_del_kw:
             delete_keyword(selected, kw)
         st.success(f"Removed {len(to_del_kw)} keyword(s) from '{selected}'")
-        st.experimental_rerun()
+        st.rerun()
 
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
@@ -472,6 +472,6 @@ if not cat_df.empty:
             desc      = row["Description"]
             if new != old:
                 upsert_keyword(new, desc)
-        st.experimental_rerun()
+        st.rerun()
 else:
     st.info("No transactions available.")
