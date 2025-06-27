@@ -34,6 +34,11 @@ with col2:
     currency_symbols = {"SGD": "S$", "EUR": "€", "USD": "$", "GBP": "£"}
     symbol = currency_symbols.get(display_currency, display_currency + " ")
 
+    # figure out the “other” currency (EUR if they picked SGD, SGD if they picked EUR)
+    other = "EUR" if display_currency == "SGD" else "SGD"
+    rate = get_fx_rate(other, display_currency)
+    st.caption(f"1 {other} = {rate:.4f} {display_currency}")
+
 # ── 3) FX lookup (cached 1h) ───────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
 def get_fx_rate(from_ccy: str, to_ccy: str) -> float:
