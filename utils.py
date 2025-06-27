@@ -143,7 +143,7 @@ def load_keywords_for(category: str) -> pd.DataFrame:
     sb = get_supabase()
     # first fetch the category id
     cat = (
-      sb.table("Categories")
+      sb.table("categories")
         .select("Id")
         .eq("Name", category)
         .execute()
