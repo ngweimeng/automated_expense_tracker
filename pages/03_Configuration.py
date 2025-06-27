@@ -430,7 +430,8 @@ if selected:
         if st.form_submit_button("Add Keyword") and new_kw:
             upsert_keyword(selected, new_kw)
             st.success(f"Added keyword '{new_kw}' to '{selected}'")
-            st.write("🔍kw debug:", new_kw)
+            st.write("🔍selected debug:", selected)
+            st.write("🔍new_kw debug:", new_kw)
             st.rerun()
 
     # 3) Delete selected keywords
