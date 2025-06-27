@@ -58,6 +58,44 @@ if valid.empty:
     st.info("No transactions to display.")
     st.stop()
 
+# —— Monthly Metrics (always for the current month) ————————————————
+st.markdown("---")
+st.subheader("📅 This Month's Key Metrics")
+
+# what “month” are we talking about?
+today      = date.today()
+curr_month = today.strftime("%Y-%m")
+
+# select only rows in that month
+this_month_mask = df["Date"].dt.to_period("M").astype(str) == curr_month
+m_df = df.loc[this_month_mask, :]
+
+m_total = m_df["AmtDisplay"].sum()
+m_days  = m_df["Date"].dt.day.max()  # up through today (or use calendar month length)
+m_avg   = m_total / m_days if m_days > 0 else 0.0
+
+m_cats      = m_df.groupby("Category")["AmtDisplay"].sum()
+m_top_cat   = m_cats.idxmax() if not m_cats.empty else "—"
+m_top_amt   = m_cats.max()    if not m_cats.empty else 0.0
+
+mc1, mc2, mc3 = st.columns(3)
+mc1.metric(
+    "Total Spent This Month",
+    f"{symbol}{m_total:,.2f}",
+    help=f"from {curr_month}-01 to {today}"
+)
+mc2.metric(
+    "Avg. Daily Spend",
+    f"{symbol}{m_avg:,.2f}",
+    help=f"over {m_days} days so far"
+)
+mc3.metric(
+    "Top Category",
+    m_top_cat,
+    f"{symbol}{m_top_amt:,.2f}",
+    help="Category with highest spend this month"
+)
+
 # --Filters-----------------------------------
 st.markdown("---")
 st.subheader("📊 Dashboard Filters")
