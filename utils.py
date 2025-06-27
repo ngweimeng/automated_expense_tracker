@@ -131,7 +131,7 @@ def delete_recurring(ids: List[int]) -> None:
     for rid in ids:
         sb.table("recurring")\
           .delete()\
-          .eq("Id", rid)\
+          .eq("id", rid)\
           .execute()
 
 def load_category_list() -> List[str]:
