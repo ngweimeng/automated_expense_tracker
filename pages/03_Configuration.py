@@ -280,7 +280,7 @@ with col1:
                         st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
 
 with col2:
-    st.markdown("Step 3: 📆 Recurring Subscriptions")
+    st.subheader("Step 3: 📆 Recurring Subscriptions")
 
     # 1) ensure a session_state definitions table
     if "recur_df" not in st.session_state:
