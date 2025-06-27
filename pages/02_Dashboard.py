@@ -101,7 +101,7 @@ with control_col:
         # ISO Year-Week format
         df["YearWeek"] = df["Date"].dt.strftime("%G-W%V")
         weeks = sorted(df["YearWeek"].unique())
-        selected = st.multiselect("Select week(s)", weeks, default=weeks)
+        selected = st.multiselect("Select week(s)", weeks, default=weeks[-1])
         filtered = df[df["YearWeek"].isin(selected)]
         if selected:
             first = selected[0]
@@ -116,7 +116,7 @@ with control_col:
     else:  # Day filter
         df["DayStr"] = df["Date"].dt.strftime("%Y-%m-%d")
         days = sorted(df["DayStr"].unique())
-        selected = st.multiselect("Select day(s)", days, default=days)
+        selected = st.multiselect("Select day(s)", days, default=days[-1])
         filtered = df[df["DayStr"].isin(selected)]
         if selected:
             dates = pd.to_datetime(selected)
