@@ -158,7 +158,7 @@ def load_keywords_for(category: str) -> pd.DataFrame:
 
     # 2) Fetch keywords for that Id
     resp_kw = (
-        sb.table("category_keywords")  # exact name of your keywords table
+        sb.table("category_keywords") 
           .select("Keyword")
           .eq("Category_Id", cat_id)
           .order("Keyword", desc=False)
@@ -173,7 +173,6 @@ def load_keywords_for(category: str) -> pd.DataFrame:
     df = pd.DataFrame(kw_rows)
 
     # 4) Ensure exactly one column named "Keyword"
-    #    (if your Supabase column really is "Keyword", this is already correct)
     if "Keyword" not in df.columns:
         raise RuntimeError(f"Expected column 'Keyword' in response but got {df.columns.tolist()}")
 
@@ -192,14 +191,14 @@ def delete_category(name: str) -> None:
     sb.table("categories").delete().match({"Name": name}).execute()
 
 def upsert_keyword(category: str, keyword: str) -> None:
-    """Add a keyword under a category (creating the category if needed)."""
     sb = get_supabase()
-    # get or create category
     cat_id = upsert_category(category)
-    sb.table("category_keywords")\
-    .upsert(
-        {"Category_Id": cat_id, "Keyword": keyword}
-    ).execute()
+    sb.table("category_keywords") \
+      .upsert(
+        {"Category_Id": cat_id, "Keyword": keyword},
+        on_conflict=["Category_Id","Keyword"]
+      ) \
+      .execute()
 
 def delete_keyword(category: str, keyword: str) -> None:
     """Remove a specific keyword from a category."""
