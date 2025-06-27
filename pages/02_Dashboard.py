@@ -200,7 +200,17 @@ st.subheader("📈 Spending Over Time")
 agg_level = st.selectbox("Aggregate by", ["Daily","Weekly","Monthly"], index=0)
 
 if agg_level == "Daily":
-    agg_df = filtered.groupby("Date")["AmtDisplay"].sum().reset_index()
+    # 1) floor to midnight so every transaction on the same calendar day collapses
+    filtered["Day"] = filtered["Date"].dt.normalize()
+    # 2) group by that new column
+    agg_df = (
+        filtered
+        .groupby("Day")["AmtDisplay"]
+        .sum()
+        .reset_index()
+        .rename(columns={"Day": "Date"})
+    )
+    # 3) use that date-only column for labeling
     agg_df["Label"] = agg_df["Date"].dt.strftime("%Y-%m-%d")
 
 elif agg_level == "Weekly":
@@ -237,17 +247,21 @@ else:  # Monthly
     )
 
 # build the line chart, with dynamic axis title
-fig_time = px.line(
+ffig_time = px.line(
     agg_df,
-    x="Label",
+    x="Date",
     y="AmtDisplay",
     title=f"{agg_level} Spending Trend",
     labels={
-        "Label": agg_level,
+        "Date":       agg_level,        
         "AmtDisplay": f"Amount ({display_currency})"
     },
     markers=True
 )
+
+# now you can format the date-axis ticks
+fig_time.update_xaxes(tickformat="%b %d, %Y")
+
 
 # prefix all y-axis ticks with your currency symbol
 fig_time.update_yaxes(tickprefix=symbol)
