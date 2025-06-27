@@ -24,6 +24,15 @@ display_currency = st.selectbox(
     index=0
 )
 
+currency_symbols = {
+    "SGD": "S$",
+    "EUR": "€",
+    "USD": "$",
+    "GBP": "£",
+}
+
+symbol = currency_symbols.get(display_currency, display_currency + " ")
+
 # 3) Static FX rates (you can replace with real‐time lookup if you like)
 FX = {
     ("EUR","SGD"): 1.50,    # 1 EUR = 1.50 SGD
@@ -115,19 +124,37 @@ with control_col:
         else:
             start_d, end_d = valid.min(), valid.max()
 
-# Key metrics
+# ───────── Key metrics ─────────────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("🎯 Key Metrics")
-total = filtered["AmtDisplay"].sum()
-days = (end_d - start_d).days + 1
-avg = total / days if days > 0 else 0
 
-cats = filtered.groupby("Category")["AmtDisplay"].sum()
+total    = filtered["AmtDisplay"].sum()
+days     = (end_d - start_d).days + 1
+avg      = total / days if days > 0 else 0
+
+cats     = filtered.groupby("Category")["AmtDisplay"].sum()
 top_cat, top_amt = (cats.idxmax(), cats.max()) if not cats.empty else ("—", 0.0)
+
 c1, c2, c3 = st.columns(3)
-c1.metric("Total Spent", f"SGD {total:,.2f}", border=True, help=f"over {days} days")
-c2.metric("Avg. Daily Spend", f"SGD {avg:,.2f}", border=True, help=f"over {days} days")
-c3.metric("Top Category", top_cat, f"SGD {top_amt:,.2f}", border=True, help="Category with highest spend")
+c1.metric(
+    "Total Spent",
+    f"{symbol}{total:,.2f}",
+    border=True,
+    help=f"over {days} days"
+)
+c2.metric(
+    "Avg. Daily Spend",
+    f"{symbol}{avg:,.2f}",
+    border=True,
+    help=f"over {days} days"
+)
+c3.metric(
+    "Top Category",
+    top_cat,
+    f"{symbol}{top_amt:,.2f}",
+    border=True,
+    help="Category with highest spend"
+)
 
 # Expense summary + pie
 st.markdown("---")
