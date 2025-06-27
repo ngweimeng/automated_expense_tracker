@@ -5,11 +5,11 @@ from datetime import date
 from pandas.tseries.offsets import MonthEnd
 from utils import init_categories, load_from_db, categorize_transactions
 
+init_categories()
+
 st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
 st.markdown("## *Dashboard*")
-
-init_categories()
 
 # 1) Load & categorize your raw data
 df = load_from_db()
