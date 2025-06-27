@@ -3,9 +3,12 @@ import pandas as pd
 import plotly.express as px
 from datetime import date
 from pandas.tseries.offsets import MonthEnd
-from utils import init_categories, load_from_db, categorize_transactions
+from utils import init_categories, load_from_db, categorize_transactions, load_category_list, load_category_mapping
 
-init_categories()
+if "category_list" not in st.session_state:
+    st.session_state.category_list = load_category_list()
+if "category_map" not in st.session_state:
+    st.session_state.category_map  = load_category_mapping()
 
 st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
