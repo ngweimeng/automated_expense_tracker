@@ -5,6 +5,7 @@ import requests
 
 from datetime import date
 from pandas.tseries.offsets import MonthEnd
+
 from utils import (
     init_categories,
     load_from_db,
@@ -17,7 +18,7 @@ from utils import (
 if "category_list" not in st.session_state:
     st.session_state.category_list = load_category_list()
 if "category_map" not in st.session_state:
-    st.session_state.category_map = load_category_mapping()
+    st.session_state.category_map  = load_category_mapping()
 
 # ── 1) Page setup ─────────────────────────────────────────────────────────────
 st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
@@ -26,51 +27,50 @@ st.title("💰 WeiMeng's Budget Tracker")
 # ── 2) FX lookup (cached 1h) ───────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
 def get_fx_rate(from_ccy: str, to_ccy: str) -> float:
-    url = f"https://api.exchangerate.host/convert?from={from_ccy}&to={to_ccy}&amount=1"
+    url  = f"https://api.exchangerate.host/convert?from={from_ccy}&to={to_ccy}&amount=1"
     resp = requests.get(url).json()
-    # Try info.rate, else fall back to result
+    # If the API returns an "info" object, use its rate; otherwise fall back to "result"
     if info := resp.get("info"):
-        return info.get("rate")
+        return info.get("rate", 1.0)
     return resp.get("result", 1.0)
 
-# ── 3) Pick display currency ─────────────────────────────────────────────────
+# ── 3) Pick display currency & show rate ────────────────────────────────────────
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("## *Dashboard*")
 with col2:
     display_currency = st.selectbox(
-        "🔄 Display all amounts in:", ["SGD", "EUR"], index=0
+        "🔄 Display all amounts in:",
+        ["SGD", "EUR"],
+        index=0
     )
     currency_symbols = {"SGD": "S$", "EUR": "€", "USD": "$", "GBP": "£"}
     symbol = currency_symbols.get(display_currency, display_currency + " ")
 
-    # figure out the “other” currency (EUR if they picked SGD, SGD if they picked EUR)
     other = "EUR" if display_currency == "SGD" else "SGD"
-    rate = get_fx_rate(other, display_currency)
+    rate  = get_fx_rate(other, display_currency)
     st.caption(f"1 {other} = {rate:.4f} {display_currency}")
 
-
-# ── 4) Load & categorize ───────────────────────────────────────────────────────
+# ── 4) Load & categorize your raw data ─────────────────────────────────────────
 df = load_from_db()
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 df = categorize_transactions(df)
 
 # ── 5) Bulk‐fetch only the needed FX rates ──────────────────────────────────────
-# find all currencies present except our display one
 other_ccys = df["Currency"].unique().tolist()
 if display_currency in other_ccys:
     other_ccys.remove(display_currency)
 
-# fetch one rate per distinct ccy
 rates = {
     ccy: get_fx_rate(ccy, display_currency)
     for ccy in other_ccys
 }
 
-# ── 6) Convert amounts in one pass ────────────────────────────────────────────
+# ── 6) Convert amounts in one pass ──────────────────────────────────────────────
 def to_display_amt(row):
-    c = row["Currency"]
-    return row["Amount"] if c == display_currency else row["Amount"] * rates.get(c, 1.0)
+    if row["Currency"] == display_currency:
+        return row["Amount"]
+    return row["Amount"] * rates.get(row["Currency"], 1.0)
 
 df["AmtDisplay"] = df.apply(to_display_amt, axis=1)
 
