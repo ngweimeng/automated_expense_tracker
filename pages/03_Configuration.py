@@ -186,95 +186,182 @@ with st.expander("Fetch transactions automatically via Gmail API (Wise & Instare
 
 # ───────── Manual Transactions ───────────────────────────────────────────────
 st.markdown("---")
-st.subheader("📝 Step 2: Manual Entry")
+col1, col2 = st.columns(2)
 
-with st.expander("Add one-off transactions manually", expanded=False):
-    # 1) Session‐state buffer for manual entries
-    if "manual_df" not in st.session_state:
-        st.session_state["manual_df"] = pd.DataFrame(
-            columns=["Date","Description","Amount","Currency","Source","Add?"]
+with col1:
+    st.subheader("📝 Step 2: Manual Entry")
+
+    with st.expander("Add one-off transactions manually", expanded=False):
+        # 1) Session‐state buffer for manual entries
+        if "manual_df" not in st.session_state:
+            st.session_state["manual_df"] = pd.DataFrame(
+                columns=["Date","Description","Amount","Currency","Source","Add?"]
+            )
+
+        # 2) Form to add into the buffer (not yet DB)
+        with st.form("manual_entry", clear_on_submit=True):
+            date_val = st.date_input("Date")
+            time_val = st.time_input("Time (UTC)")
+            dt = datetime.datetime.combine(date_val, time_val)
+            desc = st.text_input("Description")
+            amt  = st.number_input("Amount", min_value=0.0, format="%.2f")
+            curr = st.selectbox("Currency", ["EUR","SGD","USD","GBP"])
+            submitted = st.form_submit_button("Enter Transaction")
+            if submitted:
+                st.session_state["manual_df"] = pd.concat([
+                    st.session_state["manual_df"],
+                    pd.DataFrame([{
+                        "Date":        dt,
+                        "Description": desc,
+                        "Amount":      amt,
+                        "Currency":    curr,
+                        "Source":      "Manual",
+                        "Add?":        False
+                    }])
+                ], ignore_index=True)
+                st.success("Added successfully to Staging")
+
+        # 3) Display buffer with Add? checkboxes
+        if not st.session_state["manual_df"].empty:
+            st.markdown("**Manual Transactions in Staging**")
+
+            df_manual = st.session_state["manual_df"].copy()
+            # convert to UTC‐aware string for consistent dedupe
+            df_manual["Date"] = (
+                pd.to_datetime(df_manual["Date"], utc=True)
+                .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            )
+            df_manual["Amount"] = df_manual["Amount"].astype(float)
+            # sort newest first
+            df_manual = df_manual.sort_values("Date", ascending=False)
+
+            edited_manual = st.data_editor(
+                df_manual,
+                column_config={
+                    "Add?": st.column_config.CheckboxColumn("Add to Raw")
+                },
+                hide_index=True,
+                use_container_width=True
+            )
+
+            # 4) Add selected into DB with dedupe logic
+            if st.button("Add from Staging to Raw", key="add_manual"):
+                to_add = edited_manual.loc[edited_manual["Add?"]].drop(columns=["Add?"])
+                if to_add.empty:
+                    st.info("No manual rows selected to add.")
+                else:
+                    # load existing for dedupe
+                    raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
+                    raw["Date"]   = pd.to_datetime(raw["Date"], utc=True) \
+                                    .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                    raw["Amount"] = raw["Amount"].astype(float)
+
+                    merged = to_add.merge(
+                        raw,
+                        on=["Date","Description","Amount","Currency","Source"],
+                        how="left",
+                        indicator=True
+                    )
+                    new_rows = merged[merged["_merge"]=="left_only"].drop(columns=["_merge"])
+                    dup_count = len(to_add) - len(new_rows)
+
+                    # save new ones
+                    total = 0
+                    if not new_rows.empty:
+                        for source, grp in new_rows.groupby("Source"):
+                            save_to_db(grp.drop(columns=["Source"]), source)
+                            total += len(grp)
+
+                    # feedback + listings
+                    if total:
+                        st.success(f"Added {total} manual transaction{'s' if total>1 else ''}:")
+                        st.dataframe(new_rows, use_container_width=True)
+                    if dup_count:
+                        st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
+
+with col2:
+    st.markdown("Step 3: 📆 Recurring Subscriptions")
+
+    # 1) ensure a session_state definitions table
+    if "recur_df" not in st.session_state:
+        st.session_state["recur_df"] = pd.DataFrame(
+            columns=["Day","Description","Amount","Currency","Source","Add?"]
         )
 
-    # 2) Form to add into the buffer (not yet DB)
-    with st.form("manual_entry", clear_on_submit=True):
-        date_val = st.date_input("Date")
-        time_val = st.time_input("Time (UTC)")
-        dt = datetime.datetime.combine(date_val, time_val)
-        desc = st.text_input("Description")
-        amt  = st.number_input("Amount", min_value=0.0, format="%.2f")
-        curr = st.selectbox("Currency", ["EUR","SGD","USD","GBP"])
-        submitted = st.form_submit_button("Enter Transaction")
-        if submitted:
-            st.session_state["manual_df"] = pd.concat([
-                st.session_state["manual_df"],
+    # 2) Form to add a new recurring definition
+    with st.form("recur_form", clear_on_submit=True):
+        day = st.number_input("Day of Month", min_value=1, max_value=28, value=1)
+        desc_r = st.text_input("Description")
+        amt_r  = st.number_input("Amount", min_value=0.0, format="%.2f")
+        curr_r = st.selectbox("Currency", ["EUR","SGD","USD","GBP"])
+        submitted_r = st.form_submit_button("Add Recurring Definition")
+        if submitted_r:
+            st.session_state["recur_df"] = pd.concat([
+                st.session_state["recur_df"],
                 pd.DataFrame([{
-                    "Date":        dt,
-                    "Description": desc,
-                    "Amount":      amt,
-                    "Currency":    curr,
-                    "Source":      "Manual",
-                    "Add?":        False
+                  "Day": day,
+                  "Description": desc_r,
+                  "Amount": amt_r,
+                  "Currency": curr_r,
+                  "Source": "Manual Recurring",
+                  "Add?": False
                 }])
             ], ignore_index=True)
-            st.success("Added successfully to Staging")
+            st.success("Recurring definition added.")
 
-    # 3) Display buffer with Add? checkboxes
-    if not st.session_state["manual_df"].empty:
-        st.markdown("**Manual Transactions in Staging**")
+    # 3) Show definitions & allow removal/selection if you like
+    rd = st.session_state["recur_df"]
+    if not rd.empty:
+        st.markdown("**Active Recurring Definitions**")
+        df_recur = rd.copy().sort_values("Day")
+        edited_r = st.data_editor(df_recur,
+                      column_config={"Add?": st.column_config.CheckboxColumn("Remove?")},
+                      hide_index=True, use_container_width=True)
+        if st.button("Remove Selected Recurring", key="rm_recur"):
+            # remove checked definitions
+            mask = ~edited_r["Add?"]
+            st.session_state["recur_df"] = edited_r.loc[mask].drop(columns=["Add?"]).reset_index(drop=True)
+            st.success("Removed selected definitions.")
 
-        df_manual = st.session_state["manual_df"].copy()
-        # convert to UTC‐aware string for consistent dedupe
-        df_manual["Date"] = (
-            pd.to_datetime(df_manual["Date"], utc=True)
-              .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-        )
-        df_manual["Amount"] = df_manual["Amount"].astype(float)
-        # sort newest first
-        df_manual = df_manual.sort_values("Date", ascending=False)
+# ───────── Auto-Record Today’s Recurring ─────────────────────────────────────
+today = datetime.datetime.now(tz=ZoneInfo("Europe/Luxembourg"))
+day = today.day
+# find all definitions matching today
+if "recur_df" in st.session_state and not st.session_state["recur_df"].empty:
+    to_log = st.session_state["recur_df"].query("Day == @day")
+    if not to_log.empty:
+        st.markdown("---")
+        st.subheader(f"📤 Recording subscriptions for day {day}")
+        # build rows and save
+        rows = []
+        for _, r in to_log.iterrows():
+            dt = today.replace(hour=0, minute=0, second=0, microsecond=0)  # you can adjust time as needed
+            rows.append({
+              "Date":        dt,
+              "Description": r["Description"],
+              "Amount":      r["Amount"],
+              "Currency":    r["Currency"],
+              "Source":      r["Source"],
+            })
+        # dedupe+save
+        raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
+        raw["Date"]   = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+        raw["Amount"] = raw["Amount"].astype(float)
 
-        edited_manual = st.data_editor(
-            df_manual,
-            column_config={
-                "Add?": st.column_config.CheckboxColumn("Add to Raw")
-            },
-            hide_index=True,
-            use_container_width=True
-        )
+        new = pd.DataFrame(rows)
+        new["Date"]   = pd.to_datetime(new["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+        new["Amount"] = new["Amount"].astype(float)
 
-        # 4) Add selected into DB with dedupe logic
-        if st.button("Add from Staging to Raw", key="add_manual"):
-            to_add = edited_manual.loc[edited_manual["Add?"]].drop(columns=["Add?"])
-            if to_add.empty:
-                st.info("No manual rows selected to add.")
-            else:
-                # load existing for dedupe
-                raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
-                raw["Date"]   = pd.to_datetime(raw["Date"], utc=True) \
-                                  .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-                raw["Amount"] = raw["Amount"].astype(float)
-
-                merged = to_add.merge(
-                    raw,
-                    on=["Date","Description","Amount","Currency","Source"],
-                    how="left",
-                    indicator=True
-                )
-                new_rows = merged[merged["_merge"]=="left_only"].drop(columns=["_merge"])
-                dup_count = len(to_add) - len(new_rows)
-
-                # save new ones
-                total = 0
-                if not new_rows.empty:
-                    for source, grp in new_rows.groupby("Source"):
-                        save_to_db(grp.drop(columns=["Source"]), source)
-                        total += len(grp)
-
-                # feedback + listings
-                if total:
-                    st.success(f"Added {total} manual transaction{'s' if total>1 else ''}:")
-                    st.dataframe(new_rows, use_container_width=True)
-                if dup_count:
-                    st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
+        merged = new.merge(raw, how="left",
+                           on=["Date","Description","Amount","Currency","Source"],
+                           indicator=True)
+        to_save = merged[merged["_merge"]=="left_only"].drop(columns=["_merge"])
+        if not to_save.empty:
+            for src, grp in to_save.groupby("Source"):
+                save_to_db(grp.drop(columns=["Source"]), src)
+            st.success(f"Logged {len(to_save)} recurring transaction(s) for today.")
+        else:
+            st.info("No new recurring subscriptions to record today.")
 
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
