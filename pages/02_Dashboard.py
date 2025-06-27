@@ -1,63 +1,79 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import requests
+
 from datetime import date
 from pandas.tseries.offsets import MonthEnd
-from utils import init_categories, load_from_db, categorize_transactions, load_category_list, load_category_mapping
+from utils import (
+    init_categories,
+    load_from_db,
+    categorize_transactions,
+    load_category_list,
+    load_category_mapping,
+)
 
+# ——————————————————————————————————————————————————————————————————————————————
+# 0) Bootstrap your category state (unchanged)
+# ——————————————————————————————————————————————————————————————————————————————
 if "category_list" not in st.session_state:
     st.session_state.category_list = load_category_list()
 if "category_map" not in st.session_state:
-    st.session_state.category_map  = load_category_mapping()
+    st.session_state.category_map = load_category_mapping()
 
+# ——————————————————————————————————————————————————————————————————————————————
+# 1) Page config + title
+# ——————————————————————————————————————————————————————————————————————————————
 st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
 
+# ——————————————————————————————————————————————————————————————————————————————
+# 2) Currency selector + symbol lookup
+# ——————————————————————————————————————————————————————————————————————————————
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("## *Dashboard*")
 with col2:
-    # 2) Ask user which currency they want to see everything in
     display_currency = st.selectbox(
-        "🔄 Display all amounts in:",
-        ["SGD", "EUR"],
-        index=0
+        "🔄 Display all amounts in:", ["SGD", "EUR"], index=0
     )
-
-    currency_symbols = {
-        "SGD": "S$",
-        "EUR": "€",
-        "USD": "$",
-        "GBP": "£",
-    }
-
+    currency_symbols = {"SGD": "S$", "EUR": "€", "USD": "$", "GBP": "£"}
     symbol = currency_symbols.get(display_currency, display_currency + " ")
 
+# ——————————————————————————————————————————————————————————————————————————————
+# 3) Fetch FX rates dynamically (cached for 1h)
+# ——————————————————————————————————————————————————————————————————————————————
+@st.cache_data(ttl=3600)
+def get_fx_rate(from_ccy: str, to_ccy: str) -> float:
+    """
+    Uses exchangerate.host to get the current spot rate
+    from `from_ccy` to `to_ccy`. Cached for 1 hour.
+    """
+    url = f"https://api.exchangerate.host/convert?from={from_ccy}&to={to_ccy}"
+    resp = requests.get(url).json()
+    # resp["info"]["rate"] is your conversion factor
+    return resp["info"]["rate"]  # e.g. 1 EUR → 1.50 SGD
 
-# 1) Load & categorize your raw data
+# ——————————————————————————————————————————————————————————————————————————————
+# 4) Load, categorize, and build your display‐amount column
+# ——————————————————————————————————————————————————————————————————————————————
 df = load_from_db()
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 df = categorize_transactions(df)
 
-# 3) Static FX rates (you can replace with real‐time lookup if you like)
-FX = {
-    ("EUR","SGD"): 1.50,    # 1 EUR = 1.50 SGD
-    ("SGD","EUR"): 1/1.50,  # 1 SGD = 0.67 EUR
-}
-
-# 4) Make a converted‐amount column on the fly
-def convert(row):
-    src = row["Currency"]
+def convert_to_display(row):
+    """Convert a single row’s Amount→AmtDisplay in `display_currency`."""
     amt = row["Amount"]
+    src = row["Currency"]
     if src == display_currency:
         return amt
-    rate = FX.get((src, display_currency))
-    # if no rate known, just leave as‐is
-    return amt * rate if rate else amt
+    # if we know how to go from src→display, fetch & apply
+    rate = get_fx_rate(src, display_currency)
+    return amt * rate
 
-df["AmtDisplay"] = df.apply(convert, axis=1)
+df["AmtDisplay"] = df.apply(convert_to_display, axis=1)
 
-# now carry on using df["AmtDisplay"] instead of df["Amount"]...
+# Use df["AmtDisplay"] instead of df["Amount"]
 valid = df["Date"].dropna()
 if valid.empty:
     st.info("No transactions to display.")
