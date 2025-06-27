@@ -196,10 +196,11 @@ def upsert_keyword(category: str, keyword: str) -> None:
     sb = get_supabase()
     # get or create category
     cat_id = upsert_category(category)
-    sb.table("category_keywords").upsert({
-        "Category_Id": cat_id,
-        "Keyword":     keyword
-    }, on_conflict=["Category_Id","Keyword"]).execute()
+    sb.table("category_keywords")\
+    .upsert(
+        {"Category_Id": cat_id, "Keyword": keyword},
+        on_conflict=["Category_Id","Keyword"]
+    ).execute()
 
 def delete_keyword(category: str, keyword: str) -> None:
     """Remove a specific keyword from a category."""
