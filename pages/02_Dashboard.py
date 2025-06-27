@@ -58,32 +58,35 @@ if valid.empty:
     st.info("No transactions to display.")
     st.stop()
 
-# ── Salary & Budgeting Segment (always in EUR) ────────────────────────────────
+# ── Salary & Budgeting Segment ────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("💼 Salary & Budgeting")
 
-col_income, col_budget = st.columns(2)
-with col_income:
-    # net income in EUR
+col_inc, col_bud = st.columns(2)
+
+with col_inc:
+    # default monthly net income in EUR
     income_eur = st.number_input(
-        "Monthly Net Income (EUR)",
+        "Monthly net income (EUR)",
         min_value=0.0,
-        value=5000.0,
-        step=100.0,
-        format="%.2f",
-        help="Enter your net take-home pay for this month (in €)"
-    )
-with col_budget:
-    budget_pct = st.slider(
-        "Spending Budget (%)",
-        min_value=0,
-        max_value=100,
-        value=50,
-        help="What % of your income do you plan to spend?"
+        value=4250.0,
+        step=50.0,
+        format="%.2f"
     )
 
-# compute budget amount (still in EUR)
-budget_amount_eur = income_eur * (budget_pct / 100.0)
+with col_bud:
+    # what % of income they plan to spend
+    budget_pct = st.slider(
+        "Budget % of income", 
+        min_value=0, 
+        max_value=100, 
+        value=50,    # default 50%
+        step=1, 
+        format="%d%%"
+    )
+    # compute the EUR amount and show it live
+    budget_amount_eur = income_eur * budget_pct / 100
+    st.write(f"➡️ Budgeted spend: €{budget_amount_eur:,.2f} / month")
 
 
 # ── This Month's Key Metrics ─────────────────────────────────────────────────
