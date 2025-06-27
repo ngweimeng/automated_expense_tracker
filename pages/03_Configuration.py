@@ -335,12 +335,11 @@ with col2:
         today      = datetime.datetime.now(tz=ZoneInfo("Europe/Luxembourg"))
         today_day  = today.day
         due        = recur_df.query("Day == @today_day") if not recur_df.empty else pd.DataFrame()
+
         if not due.empty:
-            st.markdown("---")
-            st.subheader(f"📤 Recording subscriptions for day {today_day}")
+            # Build the list of rows to insert
             rows = []
             for _, r in due.iterrows():
-                # record at midnight local time (adjust if you prefer another hour)
                 dt = today.replace(hour=0, minute=0, second=0, microsecond=0)
                 rows.append({
                     "Date":        dt,
@@ -349,15 +348,21 @@ with col2:
                     "Currency":    r["Currency"],
                     "Source":      r["Source"],
                 })
-            # dedupe + save
+
+            # Load existing transactions for dedupe
             raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
-            raw["Date"]   = pd.to_datetime(raw["Date"], utc=True)\
-                                .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            raw["Date"]   = (
+                pd.to_datetime(raw["Date"], utc=True)
+                .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            )
             raw["Amount"] = raw["Amount"].astype(float)
 
+            # Normalize and dedupe the new rows
             new_df = pd.DataFrame(rows)
-            new_df["Date"]   = pd.to_datetime(new_df["Date"], utc=True)\
-                                .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            new_df["Date"]   = (
+                pd.to_datetime(new_df["Date"], utc=True)
+                .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+            )
             new_df["Amount"] = new_df["Amount"].astype(float)
 
             merged = new_df.merge(
@@ -367,12 +372,11 @@ with col2:
                 indicator=True
             )
             to_save = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+
+            # Insert without any notifications
             if not to_save.empty:
                 for src, grp in to_save.groupby("Source"):
                     save_to_db(grp.drop(columns=["Source"]), src)
-                st.success(f"Logged {len(to_save)} subscription(s) for today.")
-            else:
-                st.info("No new subscriptions to record today.")
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
 st.markdown("---")
