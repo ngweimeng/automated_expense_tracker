@@ -247,7 +247,7 @@ else:  # Monthly
     )
 
 # build the line chart, with dynamic axis title
-ffig_time = px.line(
+fig_time = px.line(
     agg_df,
     x="Date",
     y="AmtDisplay",
