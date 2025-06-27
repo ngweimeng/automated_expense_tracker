@@ -12,29 +12,33 @@ if "category_map" not in st.session_state:
 
 st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
-st.markdown("## *Dashboard*")
+
+col1, col2 = st.columns(2)
+with col1:
+    st.markdown("## *Dashboard*")
+with col2:
+    # 2) Ask user which currency they want to see everything in
+    st.markdown("---")
+    display_currency = st.selectbox(
+        "🔄 Display all amounts in:",
+        ["SGD", "EUR"],
+        index=0
+    )
+
+    currency_symbols = {
+        "SGD": "S$",
+        "EUR": "€",
+        "USD": "$",
+        "GBP": "£",
+    }
+
+    symbol = currency_symbols.get(display_currency, display_currency + " ")
+
 
 # 1) Load & categorize your raw data
 df = load_from_db()
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 df = categorize_transactions(df)
-
-# 2) Ask user which currency they want to see everything in
-st.markdown("---")
-display_currency = st.selectbox(
-    "🔄 Display all amounts in:",
-    ["SGD", "EUR"],
-    index=0
-)
-
-currency_symbols = {
-    "SGD": "S$",
-    "EUR": "€",
-    "USD": "$",
-    "GBP": "£",
-}
-
-symbol = currency_symbols.get(display_currency, display_currency + " ")
 
 # 3) Static FX rates (you can replace with real‐time lookup if you like)
 FX = {
