@@ -58,19 +58,20 @@ if valid.empty:
     st.info("No transactions to display.")
     st.stop()
 
-# ── Salary & Budgeting Segment ────────────────────────────────────────────────
+# ── Salary & Budgeting Segment (always in EUR) ────────────────────────────────
 st.markdown("---")
 st.subheader("💼 Salary & Budgeting")
 
 col_income, col_budget = st.columns(2)
 with col_income:
-    income = st.number_input(
-        "Monthly Net Income",
+    # net income in EUR
+    income_eur = st.number_input(
+        "Monthly Net Income (EUR)",
         min_value=0.0,
         value=5000.0,
         step=100.0,
         format="%.2f",
-        help="Enter your net take-home pay for this month"
+        help="Enter your net take-home pay for this month (in €)"
     )
 with col_budget:
     budget_pct = st.slider(
@@ -80,29 +81,49 @@ with col_budget:
         value=50,
         help="What % of your income do you plan to spend?"
     )
-# calculate how much you intended to spend this month
-budget_amount = income * (budget_pct / 100.0)
+
+# compute budget amount (still in EUR)
+budget_amount_eur = income_eur * (budget_pct / 100.0)
 
 
 # ── This Month's Key Metrics ─────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📅 This Month's Key Metrics")
 
-# figure out current month string
+# current month string
 today      = date.today()
 curr_month = today.strftime("%Y-%m")
 
-# filter df → only this month
-mask = df["Date"].dt.to_period("M").astype(str) == curr_month
-m_df = df.loc[mask]
+# filter transactions for this month
+mask   = df["Date"].dt.to_period("M").astype(str) == curr_month
+m_df   = df.loc[mask]
 
-# compute actuals
-m_total   = m_df["AmtDisplay"].sum()
-m_days    = today.day
-m_saved   = income - m_total
+# actual spent in display currency
+m_total = m_df["AmtDisplay"].sum()
+
+# compute remaining & saved in display currency
+# note: if you want to convert budget_amount_eur→display, you'd need FX here;
+# otherwise we assume income/budget in EUR and metrics in EUR.
+# To keep everything in your display_currency, you could:
+#    rate_eur = FX.get(("EUR", display_currency), 1.0)
+#    budget_amount = budget_amount_eur * rate_eur
+#    income = income_eur * rate_eur
+#    then use those in the metrics below.
+# For now we'll show budgets in EUR if display_currency=="EUR", else leave as-is.
+
+if display_currency != "EUR":
+    # convert your EUR inputs into display_ccy
+    rate_eur = FX.get(("EUR", display_currency), 1.0)
+    budget_amount = budget_amount_eur * rate_eur
+    income         = income_eur * rate_eur
+else:
+    budget_amount = budget_amount_eur
+    income         = income_eur
+
 m_remaining = budget_amount - m_total
+m_saved     = income - m_total
 
-# build metrics
+# render the three metrics
 mc1, mc2, mc3 = st.columns(3)
 mc1.metric(
     "Total Spent This Month",
@@ -117,9 +138,8 @@ mc2.metric(
 mc3.metric(
     "Total Saved This Month",
     f"{symbol}{m_saved:,.2f}",
-    help=f"Income minus spend"
+    help="Income minus spend"
 )
-
 # --Filters-----------------------------------
 st.markdown("---")
 st.subheader("📊 Dashboard Filters")
