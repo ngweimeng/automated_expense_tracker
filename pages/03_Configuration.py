@@ -304,7 +304,7 @@ with col2:
         if st.button("Delete Selected", key="rm_recur"):
             delete_recurring(to_delete)
             st.success(f"Deleted {len(to_delete)} subscription{'s' if len(to_delete)>1 else ''}.")
-            st.experimental_rerun()
+            st.rerun()
     else:
         st.info("No recurring subscriptions defined yet.")
 
@@ -327,7 +327,7 @@ with col2:
                 "source":      "Manual Recurring"
             })
             st.success(f"Saved subscription (ID {new_id}).")
-            st.experimental_rerun()
+            st.rerun()
 
     # ───────── Auto-Record Today’s Subscriptions ────────────────────────────────
     today      = datetime.datetime.now(tz=ZoneInfo("Europe/Luxembourg"))
