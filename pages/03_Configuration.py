@@ -9,7 +9,7 @@ import datetime
 
 
 from gmail_api import init_gmail_service, get_email_message_details, search_emails
-from utils import load_from_db, save_to_db, categorize_transactions, init_categories, save_categories, load_recurring, save_recurring_row, delete_recurring
+from utils import load_from_db, save_to_db, categorize_transactions, init_categories, save_categories, load_recurring, save_recurring_row, delete_recurring, load_category_mapping, upsert_category_mapping, delete_category_mapping
 from dateutil import parser as date_parser
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -20,7 +20,7 @@ st.title("💰 WeiMeng's Budget Tracker")
 st.markdown("## *Configuration*")
 
 # Initialize categories
-init_categories()
+st.session_state.category_map = load_category_mapping()
 
 # ──────────────── OAuth Setup ────────────────────────────────────────────────
 client_secret = st.secrets["gmail"]["client_secret"]
@@ -382,44 +382,57 @@ with col2:
 st.markdown("---")
 raw_df = load_from_db()
 raw_df["Date"] = (
-    pd.to_datetime(raw_df["Date"], utc=True)     
-      .dt.tz_convert("Europe/Luxembourg")     # convert to CET/CEST automatically
+    pd.to_datetime(raw_df["Date"], utc=True)
+      .dt.tz_convert("Europe/Luxembourg")
 )
 cat_df = categorize_transactions(raw_df)
-if "Date" in cat_df: cat_df["Date"] = pd.to_datetime(cat_df["Date"], errors='coerce')
+if "Date" in cat_df:
+    cat_df["Date"] = pd.to_datetime(cat_df["Date"], errors="coerce")
+
 if not cat_df.empty:
-    st.subheader("🗂️ Categorize/View Raw Transactions Data")
+    st.subheader("🗂️ Categorize/View Raw Transactions")
+    # Build dropdown options from your flat mapping + “Uncategorized”
+    cats = sorted(set(st.session_state.category_map.tolist()) | {"Uncategorized"})
     edited2 = st.data_editor(
         cat_df[["Date","Description","Amount","Currency","Category","Source"]],
-        column_config={"Category": st.column_config.SelectboxColumn(
-            options=list(st.session_state.categories.keys())
-        )},
+        column_config={
+            "Category": st.column_config.SelectboxColumn(
+                options=cats
+            )
+        },
         hide_index=True,
         use_container_width=True
     )
     if st.button("Apply Changes to Categories"):
+        from utils import upsert_category_mapping, load_category_mapping
         for idx, row in edited2.iterrows():
             old, new = cat_df.at[idx, "Category"], row["Category"]
             desc = row["Description"]
-            if new != old and desc not in st.session_state.categories.get(new, []):
-                st.session_state.categories.setdefault(new, []).append(desc)
-        save_categories()
-        st.rerun()
+            if new != old:
+                upsert_category_mapping(desc, new)
+        # reload the mapping and rerun to reflect changes
+        st.session_state.category_map = load_category_mapping()
+        st.experimental_rerun()
 else:
     st.info("No transactions available.")
 
-# ───────── Current Categories File ───────────────────────────────────────────
+# ───────── Current Category Mapping ──────────────────────────────────────────
 st.markdown("---")
-st.subheader("📂 Current Categories File")
-try:
-    with open("categories.json", "r") as f:
-        categories = json.load(f)
-    st.json(categories)
+st.subheader("🔗 Current Category Mapping")
+mapping: pd.Series = st.session_state.category_map
+
+if not mapping.empty:
+    df_map = mapping.reset_index()
+    df_map.columns = ["Description","Category"]
+    st.dataframe(df_map, use_container_width=True)
+
+    # Optional: allow users to download the mapping
+    csv = df_map.to_csv(index=False)
     st.download_button(
-        "Download categories.json",
-        data=json.dumps(categories, indent=4),
-        file_name="categories.json",
-        mime="application/json"
+        "Download mapping as CSV",
+        data=csv,
+        file_name="category_mapping.csv",
+        mime="text/csv"
     )
-except FileNotFoundError:
-    st.error("categories.json not found.")
+else:
+    st.info("No category mappings defined yet.")

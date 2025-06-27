@@ -83,12 +83,12 @@ def save_categories():
 
 def categorize_transactions(df: pd.DataFrame) -> pd.DataFrame:
     df["Category"] = "Uncategorized"
-    for cat, keywords in st.session_state.categories.items():
-        if cat == "Uncategorized" or not keywords:
-            continue
-        lowered = [kw.lower().strip() for kw in keywords]
-        mask = df["Description"].str.lower().str.strip().isin(lowered)
-        df.loc[mask, "Category"] = cat
+    # grab your flat mapping: Description → Category
+    mapping: pd.Series = st.session_state.category_map  
+    # create a boolean mask of exact matches
+    mask = df["Description"].isin(mapping.index)
+    # map those descriptions to their category
+    df.loc[mask, "Category"] = df.loc[mask, "Description"].map(mapping)
     return df
 
 def load_recurring() -> pd.DataFrame:
@@ -132,3 +132,40 @@ def delete_recurring(ids: List[int]) -> None:
           .eq("Id", rid)\
           .execute()
 
+def load_category_mapping() -> pd.Series:
+    """
+    Fetch the flat mapping table from Supabase
+    and return a pandas Series indexed by Description -> Category.
+    """
+    sb   = get_supabase()
+    resp = (
+        sb.table("category_mapping")
+          .select('"Description","Category"')
+          .execute()
+    )
+    data = resp.data or []
+    df   = pd.DataFrame(data)
+    if df.empty:
+        # no mappings yet: return an empty Series
+        return pd.Series(dtype="object")
+    return pd.Series(df["Category"].values, index=df["Description"].values)
+
+def upsert_category_mapping(description: str, category: str) -> None:
+    """
+    Insert or update a merchant description → category mapping.
+    """
+    sb = get_supabase()
+    sb.table("category_mapping").upsert({
+        "Description": description,
+        "Category":    category
+    }).execute()
+
+def delete_category_mapping(description: str) -> None:
+    """
+    Remove a mapping (if you want users to be able to un-map).
+    """
+    sb = get_supabase()
+    sb.table("category_mapping")\
+      .delete()\
+      .eq("Description", description)\
+      .execute()
