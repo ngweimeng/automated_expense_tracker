@@ -9,7 +9,7 @@ import datetime
 
 
 from gmail_api import init_gmail_service, get_email_message_details, search_emails
-from utils import load_from_db, save_to_db, categorize_transactions, init_categories, save_categories
+from utils import load_from_db, save_to_db, categorize_transactions, init_categories, save_categories, load_recurring, save_recurring_row, delete_recurring
 from dateutil import parser as date_parser
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -281,89 +281,96 @@ with col1:
 
 with col2:
     st.subheader("Step 3: 📆 Recurring Subscriptions")
-    with st.expander("List all manual reucrring subscriptions", expanded=False):
 
-        # 1) ensure a session_state definitions table
-        if "recur_df" not in st.session_state:
-            st.session_state["recur_df"] = pd.DataFrame(
-                columns=["Day","Description","Amount","Currency","Source","Add?"]
-            )
+    # ───────── Active Recurring Definitions ────────────────────────────────────
+    st.markdown("**All active subscriptions**")
+    recur_df = load_recurring()   # pulls from your Recurring_Transactions table
+    if not recur_df.empty:
+        # show the list
+        display = recur_df.copy().reset_index(drop=True)
+        st.data_editor(
+            display[["Id","Day","Description","Amount","Currency","Source"]],
+            column_config={"Id": st.column_config.TextColumn("PK", disabled=True)},
+            hide_index=True,
+            use_container_width=True
+        )
 
-        # 2) Form to add a new recurring definition
-        with st.form("recur_form", clear_on_submit=True):
-            day = st.number_input("Day of Month", min_value=1, max_value=28, value=1)
-            desc_r = st.text_input("Description")
-            amt_r  = st.number_input("Amount", min_value=0.0, format="%.2f")
-            curr_r = st.selectbox("Currency", ["EUR","SGD","USD","GBP"])
-            submitted_r = st.form_submit_button("Add Recurring Definition")
-            if submitted_r:
-                st.session_state["recur_df"] = pd.concat([
-                    st.session_state["recur_df"],
-                    pd.DataFrame([{
-                    "Day": day,
-                    "Description": desc_r,
-                    "Amount": amt_r,
-                    "Currency": curr_r,
-                    "Source": "Manual Recurring",
-                    "Add?": False
-                    }])
-                ], ignore_index=True)
-                st.success("Recurring definition added.")
+        # allow deletion by primary key
+        to_delete = st.multiselect(
+            "Remove subscriptions (select ID)",
+            options=recur_df["Id"].tolist(),
+            format_func=lambda pk: f"{pk} – {recur_df.loc[recur_df['Id']==pk,'Description'].item()}"
+        )
+        if st.button("Delete Selected", key="rm_recur"):
+            delete_recurring(to_delete)
+            st.success(f"Deleted {len(to_delete)} subscription{'s' if len(to_delete)>1 else ''}.")
+            st.experimental_rerun()
+    else:
+        st.info("No recurring subscriptions defined yet.")
 
-        # 3) Show definitions & allow removal/selection if you like
-        rd = st.session_state["recur_df"]
-        if not rd.empty:
-            st.markdown("**Active Recurring Definitions**")
-            df_recur = rd.copy().sort_values("Day")
-            edited_r = st.data_editor(df_recur,
-                        column_config={"Add?": st.column_config.CheckboxColumn("Remove?")},
-                        hide_index=True, use_container_width=True)
-            if st.button("Remove Selected Recurring", key="rm_recur"):
-                # remove checked definitions
-                mask = ~edited_r["Add?"]
-                st.session_state["recur_df"] = edited_r.loc[mask].drop(columns=["Add?"]).reset_index(drop=True)
-                st.success("Removed selected definitions.")
+    st.markdown("---")
 
-    # ───────── Auto-Record Today’s Recurring ─────────────────────────────────────
-    today = datetime.datetime.now(tz=ZoneInfo("Europe/Luxembourg"))
-    day = today.day
-    # find all definitions matching today
-    if "recur_df" in st.session_state and not st.session_state["recur_df"].empty:
-        to_log = st.session_state["recur_df"].query("Day == @day")
-        if not to_log.empty:
-            st.markdown("---")
-            st.subheader(f"📤 Recording subscriptions for day {day}")
-            # build rows and save
-            rows = []
-            for _, r in to_log.iterrows():
-                dt = today.replace(hour=0, minute=0, second=0, microsecond=0)  # you can adjust time as needed
-                rows.append({
+    # ───────── Add a New Subscription Definition ───────────────────────────────
+    st.markdown("**Add a new recurring subscription**")
+    with st.form("add_recur", clear_on_submit=True):
+        day       = st.number_input("Day of Month", 1, 28, 1)
+        desc      = st.text_input("Description")
+        amt       = st.number_input("Amount", min_value=0.0, format="%.2f")
+        currency  = st.selectbox("Currency", ["EUR","SGD","USD","GBP"])
+        submitted = st.form_submit_button("Save Subscription")
+        if submitted:
+            new_id = save_recurring_row({
+                "day":        int(day),
+                "description": desc,
+                "amount":      float(amt),
+                "currency":    currency,
+                "source":      "Manual Recurring"
+            })
+            st.success(f"Saved subscription (ID {new_id}).")
+            st.experimental_rerun()
+
+    # ───────── Auto-Record Today’s Subscriptions ────────────────────────────────
+    today      = datetime.datetime.now(tz=ZoneInfo("Europe/Luxembourg"))
+    today_day  = today.day
+    due        = recur_df.query("Day == @today_day") if not recur_df.empty else pd.DataFrame()
+    if not due.empty:
+        st.markdown("---")
+        st.subheader(f"📤 Recording subscriptions for day {today_day}")
+        rows = []
+        for _, r in due.iterrows():
+            # record at midnight local time (adjust if you prefer another hour)
+            dt = today.replace(hour=0, minute=0, second=0, microsecond=0)
+            rows.append({
                 "Date":        dt,
                 "Description": r["Description"],
                 "Amount":      r["Amount"],
                 "Currency":    r["Currency"],
                 "Source":      r["Source"],
-                })
-            # dedupe+save
-            raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
-            raw["Date"]   = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            raw["Amount"] = raw["Amount"].astype(float)
+            })
+        # dedupe + save
+        raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
+        raw["Date"]   = pd.to_datetime(raw["Date"], utc=True)\
+                            .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+        raw["Amount"] = raw["Amount"].astype(float)
 
-            new = pd.DataFrame(rows)
-            new["Date"]   = pd.to_datetime(new["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            new["Amount"] = new["Amount"].astype(float)
+        new_df = pd.DataFrame(rows)
+        new_df["Date"]   = pd.to_datetime(new_df["Date"], utc=True)\
+                              .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+        new_df["Amount"] = new_df["Amount"].astype(float)
 
-            merged = new.merge(raw, how="left",
-                            on=["Date","Description","Amount","Currency","Source"],
-                            indicator=True)
-            to_save = merged[merged["_merge"]=="left_only"].drop(columns=["_merge"])
-            if not to_save.empty:
-                for src, grp in to_save.groupby("Source"):
-                    save_to_db(grp.drop(columns=["Source"]), src)
-                st.success(f"Logged {len(to_save)} recurring transaction(s) for today.")
-            else:
-                st.info("No new recurring subscriptions to record today.")
-
+        merged = new_df.merge(
+            raw,
+            on=["Date","Description","Amount","Currency","Source"],
+            how="left",
+            indicator=True
+        )
+        to_save = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+        if not to_save.empty:
+            for src, grp in to_save.groupby("Source"):
+                save_to_db(grp.drop(columns=["Source"]), src)
+            st.success(f"Logged {len(to_save)} subscription(s) for today.")
+        else:
+            st.info("No new subscriptions to record today.")
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
 st.markdown("---")
