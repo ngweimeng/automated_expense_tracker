@@ -198,7 +198,7 @@ with st.expander("Add one-off transactions manually", expanded=False):
     # 2) Form to add into the buffer (not yet DB)
     with st.form("manual_entry", clear_on_submit=True):
         date_val = st.date_input("Date")
-        time_val = st.time_input("Time")
+        time_val = st.time_input("Time (UTC)")
         dt = datetime.datetime.combine(date_val, time_val)
         desc = st.text_input("Description")
         amt  = st.number_input("Amount", min_value=0.0, format="%.2f")
