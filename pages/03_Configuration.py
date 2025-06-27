@@ -15,7 +15,7 @@ from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
 
 # Page config
-st.set_page_config(page_title="Configuration", page_icon="⚙️")
+st.set_page_config(page_title="Configuration", layout="wide", page_icon="⚙️")
 st.title("💰 WeiMeng's Budget Tracker")
 st.markdown("## *Configuration*")
 

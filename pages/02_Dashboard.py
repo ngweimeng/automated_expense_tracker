@@ -5,7 +5,7 @@ from datetime import date
 from pandas.tseries.offsets import MonthEnd
 from utils import init_categories, load_from_db, categorize_transactions
 
-st.set_page_config(page_title="Dashboard", page_icon="📊")
+st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
 st.markdown(
     """
