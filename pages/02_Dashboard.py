@@ -23,7 +23,17 @@ if "category_map" not in st.session_state:
 st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
 
-# ── 2) Pick display currency ─────────────────────────────────────────────────
+# ── 2) FX lookup (cached 1h) ───────────────────────────────────────────────────
+@st.cache_data(ttl=3600)
+def get_fx_rate(from_ccy: str, to_ccy: str) -> float:
+    url = f"https://api.exchangerate.host/convert?from={from_ccy}&to={to_ccy}&amount=1"
+    resp = requests.get(url).json()
+    # Try info.rate, else fall back to result
+    if info := resp.get("info"):
+        return info.get("rate")
+    return resp.get("result", 1.0)
+
+# ── 3) Pick display currency ─────────────────────────────────────────────────
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("## *Dashboard*")
@@ -39,15 +49,6 @@ with col2:
     rate = get_fx_rate(other, display_currency)
     st.caption(f"1 {other} = {rate:.4f} {display_currency}")
 
-# ── 3) FX lookup (cached 1h) ───────────────────────────────────────────────────
-@st.cache_data(ttl=3600)
-def get_fx_rate(from_ccy: str, to_ccy: str) -> float:
-    url = f"https://api.exchangerate.host/convert?from={from_ccy}&to={to_ccy}&amount=1"
-    resp = requests.get(url).json()
-    # Try info.rate, else fall back to result
-    if info := resp.get("info"):
-        return info.get("rate")
-    return resp.get("result", 1.0)
 
 # ── 4) Load & categorize ───────────────────────────────────────────────────────
 df = load_from_db()
