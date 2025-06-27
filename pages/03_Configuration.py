@@ -446,37 +446,24 @@ with col2:
                 st.success(f"Removed {len(to_del_kw)} keyword(s) from '{selected}'")
                 st.rerun()
 
-# ───────── Categorize/View Raw Transactions ─────────────────────────────────
+# ───────── Categorize & View Raw Transactions ────────────────────────────────
 st.markdown("---")
 raw_df = load_from_db()
+# Convert stored UTC strings into Europe/Luxembourg tz
 raw_df["Date"] = (
     pd.to_datetime(raw_df["Date"], utc=True)
       .dt.tz_convert("Europe/Luxembourg")
 )
+# Auto-categorize
 cat_df = categorize_transactions(raw_df)
 if "Date" in cat_df:
     cat_df["Date"] = pd.to_datetime(cat_df["Date"], errors="coerce")
 
 if not cat_df.empty:
-    st.subheader("🗂️ Categorize/View Raw Transactions")
-    # reload fresh categories for the dropdown
-    cats = load_category_list() + ["Uncategorized"]
-    edited2 = st.data_editor(
-        cat_df[["Date","Description","Amount","Currency","Category","Source"]],
-        column_config={
-            "Category": st.column_config.SelectboxColumn(options=cats)
-        },
-        hide_index=True,
+    st.subheader("🗂️ Raw Transactions (Categorized)")
+    st.dataframe(
+        cat_df[["Date", "Description", "Amount", "Currency", "Category", "Source"]],
         use_container_width=True
     )
-
-    if st.button("Apply Changes to Categories"):
-        # persist each change back to Supabase
-        for idx, row in edited2.iterrows():
-            old, new = cat_df.at[idx, "Category"], row["Category"]
-            desc      = row["Description"]
-            if new != old:
-                upsert_keyword(new, desc)
-        st.rerun()
 else:
     st.info("No transactions available.")
