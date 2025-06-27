@@ -289,8 +289,8 @@ with col2:
         # show the list
         display = recur_df.copy().reset_index(drop=True)
         st.data_editor(
-            display[["Id","Day","Description","Amount","Currency","Source"]],
-            column_config={"Id": st.column_config.TextColumn("PK", disabled=True)},
+            display[["id","Day","Description","Amount","Currency","Source"]],
+            column_config={"id": st.column_config.TextColumn("PK", disabled=True)},
             hide_index=True,
             use_container_width=True
         )
