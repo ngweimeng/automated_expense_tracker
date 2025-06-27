@@ -13,23 +13,17 @@ from utils import (
     load_category_mapping,
 )
 
-# ——————————————————————————————————————————————————————————————————————————————
-# 0) Bootstrap your category state (unchanged)
-# ——————————————————————————————————————————————————————————————————————————————
+# ── 0) Init your categories state ─────────────────────────────────────────────
 if "category_list" not in st.session_state:
     st.session_state.category_list = load_category_list()
 if "category_map" not in st.session_state:
     st.session_state.category_map = load_category_mapping()
 
-# ——————————————————————————————————————————————————————————————————————————————
-# 1) Page config + title
-# ——————————————————————————————————————————————————————————————————————————————
+# ── 1) Page setup ─────────────────────────────────────────────────────────────
 st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
 
-# ——————————————————————————————————————————————————————————————————————————————
-# 2) Currency selector + symbol lookup
-# ——————————————————————————————————————————————————————————————————————————————
+# ── 2) Pick display currency ─────────────────────────────────────────────────
 col1, col2 = st.columns(2)
 with col1:
     st.markdown("## *Dashboard*")
@@ -40,40 +34,41 @@ with col2:
     currency_symbols = {"SGD": "S$", "EUR": "€", "USD": "$", "GBP": "£"}
     symbol = currency_symbols.get(display_currency, display_currency + " ")
 
-# ——————————————————————————————————————————————————————————————————————————————
-# 3) Fetch FX rates dynamically (cached for 1h)
-# ——————————————————————————————————————————————————————————————————————————————
+# ── 3) FX lookup (cached 1h) ───────────────────────────────────────────────────
 @st.cache_data(ttl=3600)
 def get_fx_rate(from_ccy: str, to_ccy: str) -> float:
-    """
-    Uses exchangerate.host to get the current spot rate
-    from `from_ccy` to `to_ccy`. Cached for 1 hour.
-    """
-    url = f"https://api.exchangerate.host/convert?from={from_ccy}&to={to_ccy}"
+    url = f"https://api.exchangerate.host/convert?from={from_ccy}&to={to_ccy}&amount=1"
     resp = requests.get(url).json()
-    # resp["info"]["rate"] is your conversion factor
-    return resp["info"]["rate"]  # e.g. 1 EUR → 1.50 SGD
+    # Try info.rate, else fall back to result
+    if info := resp.get("info"):
+        return info.get("rate")
+    return resp.get("result", 1.0)
 
-# ——————————————————————————————————————————————————————————————————————————————
-# 4) Load, categorize, and build your display‐amount column
-# ——————————————————————————————————————————————————————————————————————————————
+# ── 4) Load & categorize ───────────────────────────────────────────────────────
 df = load_from_db()
 df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 df = categorize_transactions(df)
 
-def convert_to_display(row):
-    """Convert a single row’s Amount→AmtDisplay in `display_currency`."""
-    amt = row["Amount"]
-    src = row["Currency"]
-    if src == display_currency:
-        return amt
-    # if we know how to go from src→display, fetch & apply
-    rate = get_fx_rate(src, display_currency)
-    return amt * rate
+# ── 5) Bulk‐fetch only the needed FX rates ──────────────────────────────────────
+# find all currencies present except our display one
+other_ccys = df["Currency"].unique().tolist()
+if display_currency in other_ccys:
+    other_ccys.remove(display_currency)
 
-df["AmtDisplay"] = df.apply(convert_to_display, axis=1)
+# fetch one rate per distinct ccy
+rates = {
+    ccy: get_fx_rate(ccy, display_currency)
+    for ccy in other_ccys
+}
 
-# Use df["AmtDisplay"] instead of df["Amount"]
+# ── 6) Convert amounts in one pass ────────────────────────────────────────────
+def to_display_amt(row):
+    c = row["Currency"]
+    return row["Amount"] if c == display_currency else row["Amount"] * rates.get(c, 1.0)
+
+df["AmtDisplay"] = df.apply(to_display_amt, axis=1)
+
+# ── 7) Now everything else just uses df["AmtDisplay"] and `symbol` ────────────
 valid = df["Date"].dropna()
 if valid.empty:
     st.info("No transactions to display.")
