@@ -156,19 +156,41 @@ c3.metric(
     help="Category with highest spend"
 )
 
-# Expense summary + pie
+# ───────── Expense summary + pie ─────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📂 Expense Summary")
 
 piechart_col, dataframe_col = st.columns([1, 1])
 
 with dataframe_col:
-    summary = filtered.groupby("Category")["AmtDisplay"].sum().reset_index().sort_values("AmtDisplay", ascending=False)
+    summary = (
+        filtered
+        .groupby("Category")["AmtDisplay"]
+        .sum()
+        .reset_index()
+        .sort_values("AmtDisplay", ascending=False)
+    )
+    # append total row
     summary.loc[len(summary)] = ["Total", summary["AmtDisplay"].sum()]
-    st.dataframe(summary.style.format({"AmtDisplay":"{:.2f} SGD"}), use_container_width=True)
+
+    # format with dynamic symbol
+    fmt = lambda x: f"{symbol}{x:,.2f}"
+    styled = summary.style.format({"AmtDisplay": fmt})
+
+    st.dataframe(styled, use_container_width=True)
 
 with piechart_col:
-    fig = px.pie(summary.iloc[:-1], values="AmtDisplay", names="Category", title="Expenses by Category")
+    fig = px.pie(
+        summary.iloc[:-1],
+        values="AmtDisplay",
+        names="Category",
+        title="Expenses by Category",
+        hover_data=["AmtDisplay"]
+    )
+    # show symbol in hover
+    fig.update_traces(
+        hovertemplate="%{label}: " + symbol + "%{value:,.2f} (%{percent})"
+    )
     st.plotly_chart(fig, use_container_width=True)
 
 # Spending Over Time
