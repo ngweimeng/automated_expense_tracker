@@ -132,40 +132,57 @@ def delete_recurring(ids: List[int]) -> None:
           .eq("Id", rid)\
           .execute()
 
-def load_category_mapping() -> pd.Series:
-    """
-    Fetch the flat mapping table from Supabase
-    and return a pandas Series indexed by Description -> Category.
-    """
-    sb   = get_supabase()
-    resp = (
-        sb.table("category_mapping")
-          .select('"Description","Category"')
-          .execute()
-    )
-    data = resp.data or []
-    df   = pd.DataFrame(data)
-    if df.empty:
-        # no mappings yet: return an empty Series
-        return pd.Series(dtype="object")
-    return pd.Series(df["Category"].values, index=df["Description"].values)
-
-def upsert_category_mapping(description: str, category: str) -> None:
-    """
-    Insert or update a merchant description → category mapping.
-    """
+def load_category_list() -> List[str]:
+    """Return a list of all category names from Supabase."""
     sb = get_supabase()
-    sb.table("category_mapping").upsert({
-        "Description": description,
-        "Category":    category
-    }).execute()
+    data = sb.table("categories").select('"Name"').order("Name").execute().data or []
+    return [r["Name"] for r in data]
 
-def delete_category_mapping(description: str) -> None:
-    """
-    Remove a mapping (if you want users to be able to un-map).
-    """
+def load_keywords_for(category: str) -> pd.DataFrame:
+    """Return a DataFrame of keywords for the given category."""
     sb = get_supabase()
-    sb.table("category_mapping")\
+    data = (
+      sb.table("category_keywords")
+        .select("Keyword")
+        .eq("Category_Id", 
+            sb.table("categories").select("Id").eq("Name", category).execute().data[0]["Id"]
+        )
+        .order("Keyword")
+        .execute()
+        .data
+    ) or []
+    return pd.DataFrame(data)
+
+def upsert_category(name: str) -> int:
+    """Create a new category if missing; return its Id."""
+    sb = get_supabase()
+    # upsert by Name
+    resp = sb.table("categories").upsert({"Name": name}, on_conflict="Name").execute()
+    return resp.data[0]["Id"]
+
+def delete_category(name: str) -> None:
+    """Delete a category and all its keywords."""
+    sb = get_supabase()
+    sb.table("categories").delete().match({"Name": name}).execute()
+
+def upsert_keyword(category: str, keyword: str) -> None:
+    """Add a keyword under a category (creating the category if needed)."""
+    sb = get_supabase()
+    # get or create category
+    cat_id = upsert_category(category)
+    sb.table("category_keywords").upsert({
+        "Category_Id": cat_id,
+        "Keyword":     keyword
+    }, on_conflict=["Category_Id","Keyword"]).execute()
+
+def delete_keyword(category: str, keyword: str) -> None:
+    """Remove a specific keyword from a category."""
+    sb = get_supabase()
+    # find the category id
+    cat = sb.table("categories").select("Id").eq("Name", category).execute().data or []
+    if not cat:
+        return
+    sb.table("category_keywords")\
       .delete()\
-      .eq("Description", description)\
+      .match({"Category_Id": cat[0]["Id"], "Keyword": keyword})\
       .execute()

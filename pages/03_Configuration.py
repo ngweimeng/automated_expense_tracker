@@ -9,7 +9,7 @@ import datetime
 
 
 from gmail_api import init_gmail_service, get_email_message_details, search_emails
-from utils import load_from_db, save_to_db, categorize_transactions, init_categories, save_categories, load_recurring, save_recurring_row, delete_recurring, load_category_mapping, upsert_category_mapping, delete_category_mapping
+from utils import load_from_db, save_to_db, categorize_transactions, init_categories, save_categories, load_recurring, save_recurring_row, delete_recurring, load_category_mapping, upsert_category_mapping, delete_category_mapping, load_category_list, upsert_category, delete_category, upsert_keyword, delete_keyword, load_keywords_for
 from dateutil import parser as date_parser
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
@@ -378,6 +378,69 @@ with col2:
                 for src, grp in to_save.groupby("Source"):
                     save_to_db(grp.drop(columns=["Source"]), src)
 
+# ───────── Manage Categories ─────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("🔧 Manage Categories")
+
+# 1) Show current categories
+cats = load_category_list()
+if cats:
+    st.write("**Existing categories:**", ", ".join(cats))
+else:
+    st.info("No categories defined yet.")
+
+# 2) Add a new category
+with st.form("add_category", clear_on_submit=True):
+    new_cat = st.text_input("New category name")
+    if st.form_submit_button("Create Category") and new_cat:
+        upsert_category(new_cat)
+        st.success(f"Created category '{new_cat}'")
+        st.experimental_rerun()
+
+# 3) Delete selected categories
+to_del = st.multiselect(
+    "Delete categories", options=cats, 
+    help="Also deletes all associated keywords"
+)
+if st.button("Delete Selected Categories") and to_del:
+    for cat in to_del:
+        delete_category(cat)
+    st.success(f"Deleted {len(to_del)} category(ies).")
+    st.experimental_rerun()
+
+# ───────── Manage Keywords ────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("🗝️ Manage Category Keywords")
+
+# 1) Pick a category to view/edit its keywords
+selected = st.selectbox("Select category", options=cats or [""])
+if selected:
+    kw_df = load_keywords_for(selected)
+    st.write(f"**Keywords in '{selected}':**")
+    if not kw_df.empty:
+        st.dataframe(kw_df, use_container_width=True)
+    else:
+        st.info("No keywords defined for this category.")
+
+    # 2) Add a new keyword
+    with st.form("add_keyword", clear_on_submit=True):
+        new_kw = st.text_input("New keyword")
+        if st.form_submit_button("Add Keyword") and new_kw:
+            upsert_keyword(selected, new_kw)
+            st.success(f"Added keyword '{new_kw}' to '{selected}'")
+            st.experimental_rerun()
+
+    # 3) Delete selected keywords
+    to_del_kw = st.multiselect(
+        "Remove keywords", options=kw_df["Keyword"].tolist()
+    )
+    if st.button("Delete Selected Keywords") and to_del_kw:
+        for kw in to_del_kw:
+            delete_keyword(selected, kw)
+        st.success(f"Removed {len(to_del_kw)} keyword(s) from '{selected}'")
+        st.experimental_rerun()
+
+
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
 st.markdown("---")
 raw_df = load_from_db()
@@ -391,48 +454,24 @@ if "Date" in cat_df:
 
 if not cat_df.empty:
     st.subheader("🗂️ Categorize/View Raw Transactions")
-    # Build dropdown options from your flat mapping + “Uncategorized”
-    cats = sorted(set(st.session_state.category_map.tolist()) | {"Uncategorized"})
+    # reload fresh categories for the dropdown
+    cats = load_category_list() + ["Uncategorized"]
     edited2 = st.data_editor(
         cat_df[["Date","Description","Amount","Currency","Category","Source"]],
         column_config={
-            "Category": st.column_config.SelectboxColumn(
-                options=cats
-            )
+            "Category": st.column_config.SelectboxColumn(options=cats)
         },
         hide_index=True,
         use_container_width=True
     )
+
     if st.button("Apply Changes to Categories"):
-        from utils import upsert_category_mapping, load_category_mapping
+        # persist each change back to Supabase
         for idx, row in edited2.iterrows():
             old, new = cat_df.at[idx, "Category"], row["Category"]
-            desc = row["Description"]
+            desc      = row["Description"]
             if new != old:
-                upsert_category_mapping(desc, new)
-        # reload the mapping and rerun to reflect changes
-        st.session_state.category_map = load_category_mapping()
+                upsert_keyword(new, desc)
         st.experimental_rerun()
 else:
     st.info("No transactions available.")
-
-# ───────── Current Category Mapping ──────────────────────────────────────────
-st.markdown("---")
-st.subheader("🔗 Current Category Mapping")
-mapping: pd.Series = st.session_state.category_map
-
-if not mapping.empty:
-    df_map = mapping.reset_index()
-    df_map.columns = ["Description","Category"]
-    st.dataframe(df_map, use_container_width=True)
-
-    # Optional: allow users to download the mapping
-    csv = df_map.to_csv(index=False)
-    st.download_button(
-        "Download mapping as CSV",
-        data=csv,
-        file_name="category_mapping.csv",
-        mime="text/csv"
-    )
-else:
-    st.info("No category mappings defined yet.")
