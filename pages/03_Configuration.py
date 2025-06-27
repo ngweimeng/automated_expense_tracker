@@ -422,6 +422,7 @@ if selected:
         st.write("🔍 kw_df debug:", kw_df)
     else:
         st.info("No keywords defined for this category.")
+        st.write("🔍 kw_df debug:", kw_df)
 
     # 2) Add a new keyword
     with st.form("add_keyword", clear_on_submit=True):
