@@ -58,42 +58,66 @@ if valid.empty:
     st.info("No transactions to display.")
     st.stop()
 
-# —— Monthly Metrics (always for the current month) ————————————————
+# ── Salary & Budgeting Segment ────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("💼 Salary & Budgeting")
+
+col_income, col_budget = st.columns(2)
+with col_income:
+    income = st.number_input(
+        "Monthly Net Income",
+        min_value=0.0,
+        value=5000.0,
+        step=100.0,
+        format="%.2f",
+        help="Enter your net take-home pay for this month"
+    )
+with col_budget:
+    budget_pct = st.slider(
+        "Spending Budget (%)",
+        min_value=0,
+        max_value=100,
+        value=50,
+        help="What % of your income do you plan to spend?"
+    )
+# calculate how much you intended to spend this month
+budget_amount = income * (budget_pct / 100.0)
+
+
+# ── This Month's Key Metrics ─────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📅 This Month's Key Metrics")
 
-# what “month” are we talking about?
+# figure out current month string
 today      = date.today()
 curr_month = today.strftime("%Y-%m")
 
-# select only rows in that month
-this_month_mask = df["Date"].dt.to_period("M").astype(str) == curr_month
-m_df = df.loc[this_month_mask, :]
+# filter df → only this month
+mask = df["Date"].dt.to_period("M").astype(str) == curr_month
+m_df = df.loc[mask]
 
-m_total = m_df["AmtDisplay"].sum()
-m_days  = m_df["Date"].dt.day.max()  # up through today (or use calendar month length)
-m_avg   = m_total / m_days if m_days > 0 else 0.0
+# compute actuals
+m_total   = m_df["AmtDisplay"].sum()
+m_days    = today.day
+m_saved   = income - m_total
+m_remaining = budget_amount - m_total
 
-m_cats      = m_df.groupby("Category")["AmtDisplay"].sum()
-m_top_cat   = m_cats.idxmax() if not m_cats.empty else "—"
-m_top_amt   = m_cats.max()    if not m_cats.empty else 0.0
-
+# build metrics
 mc1, mc2, mc3 = st.columns(3)
 mc1.metric(
     "Total Spent This Month",
     f"{symbol}{m_total:,.2f}",
-    help=f"from {curr_month}-01 to {today}"
+    help=f"{curr_month}-01 to {today}"
 )
 mc2.metric(
-    "Avg. Daily Spend",
-    f"{symbol}{m_avg:,.2f}",
-    help=f"over {m_days} days so far"
+    "Budget Remaining",
+    f"{symbol}{m_remaining:,.2f}",
+    help=f"{budget_pct}% of {symbol}{income:,.2f} = {symbol}{budget_amount:,.2f}"
 )
 mc3.metric(
-    "Top Category",
-    m_top_cat,
-    f"{symbol}{m_top_amt:,.2f}",
-    help="Category with highest spend this month"
+    "Total Saved This Month",
+    f"{symbol}{m_saved:,.2f}",
+    help=f"Income minus spend"
 )
 
 # --Filters-----------------------------------
