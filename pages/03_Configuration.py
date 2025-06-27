@@ -391,25 +391,28 @@ with col1:
     else:
         st.info("No categories defined yet.")
 
+    col1, col2 = st.columns(2)
     # 2) Add a new category
-    with st.form("add_category", clear_on_submit=True):
-        new_cat = st.text_input("New category name")
-        if st.form_submit_button("Create Category") and new_cat:
-            upsert_category(new_cat)
-            st.success(f"Created category '{new_cat}'")
-            st.rerun()
+    with col1:
+        with st.form("add_category", clear_on_submit=True):
+            new_cat = st.text_input("New category name")
+            if st.form_submit_button("Create Category") and new_cat:
+                upsert_category(new_cat)
+                st.success(f"Created category '{new_cat}'")
+                st.rerun()
 
     # 3) Delete selected categories
-    to_del = st.multiselect(
-        "Delete categories",
-        options=cats,
-        help="Also deletes all associated keywords"
-    )
-    if st.button("Delete Selected Categories") and to_del:
-        for cat in to_del:
-            delete_category(cat)
-        st.success(f"Deleted {len(to_del)} category(ies).")
-        st.rerun()
+    with col2:
+        to_del = st.multiselect(
+            "Delete categories",
+            options=cats,
+            help="Also deletes all associated keywords"
+        )
+        if st.button("Delete Selected Categories") and to_del:
+            for cat in to_del:
+                delete_category(cat)
+            st.success(f"Deleted {len(to_del)} category(ies).")
+            st.rerun()
 
 with col2:
     st.subheader("🗝️ Manage Category Keywords")
