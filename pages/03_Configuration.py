@@ -378,73 +378,69 @@ with col2:
                 for src, grp in to_save.groupby("Source"):
                     save_to_db(grp.drop(columns=["Source"]), src)
 
-# ───────── Manage Categories ─────────────────────────────────────────────────
+# ───────── Manage Categories & Keywords ────────────────────────────────────────
 st.markdown("---")
-st.subheader("🔧 Manage Categories")
+col1, col2 = st.columns(2)
 
-# 1) Show current categories
-cats = load_category_list()
-if cats:
-    st.write("**Existing categories:**", ", ".join(cats))
-else:
-    st.info("No categories defined yet.")
-
-# 2) Add a new category
-with st.form("add_category", clear_on_submit=True):
-    new_cat = st.text_input("New category name")
-    if st.form_submit_button("Create Category") and new_cat:
-        upsert_category(new_cat)
-        st.success(f"Created category '{new_cat}'")
-        st.rerun()
-
-# 3) Delete selected categories
-to_del = st.multiselect(
-    "Delete categories", options=cats, 
-    help="Also deletes all associated keywords"
-)
-if st.button("Delete Selected Categories") and to_del:
-    for cat in to_del:
-        delete_category(cat)
-    st.success(f"Deleted {len(to_del)} category(ies).")
-    st.rerun()
-
-# ───────── Manage Keywords ────────────────────────────────────────────────────
-st.markdown("---")
-st.subheader("🗝️ Manage Category Keywords")
-
-# 1) Pick a category to view/edit its keywords
-selected = st.selectbox("Select category", options=cats or [""])
-if selected:
-    kw_df = load_keywords_for(selected)
-    st.write(f"**Keywords in '{selected}':**")
-    if not kw_df.empty:
-        st.dataframe(kw_df, use_container_width=True)
-        st.write("🔍 kw_df debug:", kw_df)
+with col1:
+    st.subheader("🔧 Manage Categories")
+    # 1) Show current categories
+    cats = load_category_list()
+    if cats:
+        st.write("**Existing categories:**", ", ".join(cats))
     else:
-        st.info("No keywords defined for this category.")
-        st.write("🔍 kw_df debug:", kw_df)
+        st.info("No categories defined yet.")
 
-    # 2) Add a new keyword
-    with st.form("add_keyword", clear_on_submit=True):
-        new_kw = st.text_input("New keyword")
-        if st.form_submit_button("Add Keyword") and new_kw:
-            upsert_keyword(selected, new_kw)
-            st.success(f"Added keyword '{new_kw}' to '{selected}'")
-            st.write("🔍selected debug:", selected)
-            st.write("🔍new_kw debug:", new_kw)
+    # 2) Add a new category
+    with st.form("add_category", clear_on_submit=True):
+        new_cat = st.text_input("New category name")
+        if st.form_submit_button("Create Category") and new_cat:
+            upsert_category(new_cat)
+            st.success(f"Created category '{new_cat}'")
             st.rerun()
 
-    # 3) Delete selected keywords
-    to_del_kw = st.multiselect(
-        "Remove keywords", options=kw_df["Keyword"].tolist()
+    # 3) Delete selected categories
+    to_del = st.multiselect(
+        "Delete categories",
+        options=cats,
+        help="Also deletes all associated keywords"
     )
-    st.write("🔍 to_del_kw debug:", to_del_kw)
-    
-    if st.button("Delete Selected Keywords") and to_del_kw:
-        for kw in to_del_kw:
-            delete_keyword(selected, kw)
-        st.success(f"Removed {len(to_del_kw)} keyword(s) from '{selected}'")
+    if st.button("Delete Selected Categories") and to_del:
+        for cat in to_del:
+            delete_category(cat)
+        st.success(f"Deleted {len(to_del)} category(ies).")
         st.rerun()
+
+with col2:
+    st.subheader("🗝️ Manage Category Keywords")
+    # 1) Pick a category to view/edit its keywords
+    selected = st.selectbox("Select category", options=cats or [""])
+    if selected:
+        kw_df = load_keywords_for(selected)
+        st.write(f"**Keywords in '{selected}':**")
+        if not kw_df.empty:
+            st.dataframe(kw_df, use_container_width=True)
+        else:
+            st.info("No keywords defined for this category.")
+
+        # 2) Add a new keyword
+        with st.form("add_keyword", clear_on_submit=True):
+            new_kw = st.text_input("New keyword")
+            if st.form_submit_button("Add Keyword") and new_kw:
+                upsert_keyword(selected, new_kw)
+                st.success(f"Added keyword '{new_kw}' to '{selected}'")
+                st.rerun()
+
+        # 3) Delete selected keywords
+        to_del_kw = st.multiselect(
+            "Remove keywords",
+            options=kw_df["Keyword"].tolist()
+        )
+        if st.button("Delete Selected Keywords") and to_del_kw:
+            for kw in to_del_kw:
+                delete_keyword(selected, kw)
+            st.success(f"Removed {len(to_del_kw)} keyword(s) from '{selected}'")
+            st.rerun()
 
 
 # ───────── Categorize/View Raw Transactions ─────────────────────────────────
