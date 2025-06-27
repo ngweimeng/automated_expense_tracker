@@ -2,7 +2,7 @@ import os, json, pandas as pd
 import streamlit as st
 from supabase import Client, create_client
 from monopoly_parse import parse_pdf
-from typing import List
+from typing import List, Dict
 
 RECUR_FILE = "recurring.json"
 CATEGORY_FILE = "categories.json"
@@ -186,3 +186,31 @@ def delete_keyword(category: str, keyword: str) -> None:
       .delete()\
       .match({"Category_Id": cat[0]["Id"], "Keyword": keyword})\
       .execute()
+
+def load_category_mapping() -> pd.Series:
+    """
+    Fetch the flat mapping of merchant Description→Category
+    by reading Categories and Category_Keywords from Supabase.
+    Returns a pandas Series indexed by Description, with values Category.
+    """
+    sb: Client = get_supabase()
+    # 1) Load all categories
+    cat_rows = sb.table("categories").select("Id,Name").execute().data or []
+    id2name: Dict[int,str] = {r["Id"]: r["Name"] for r in cat_rows}
+
+    # 2) Load all keywords
+    kw_rows = sb.table("category_keywords") \
+                .select("Category_Id,Keyword") \
+                .execute().data or []
+
+    # 3) Build mapping dict
+    mapping: Dict[str,str] = {
+        row["Keyword"]: id2name[row["Category_Id"]]
+        for row in kw_rows
+        if row["Category_Id"] in id2name
+    }
+
+    # 4) Return as a Series
+    if not mapping:
+        return pd.Series(dtype="object")
+    return pd.Series(mapping, name="Category")
