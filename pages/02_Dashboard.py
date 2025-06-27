@@ -10,6 +10,9 @@ from utils import (
     load_category_mapping,
 )
 
+today = date.today()
+month_label = today.strftime("%B %Y")
+
 # ── 0) Init your categories state ─────────────────────────────────────────────
 if "category_list" not in st.session_state:
     st.session_state.category_list = load_category_list()
@@ -60,7 +63,7 @@ if valid.empty:
 
 # ── Salary & Budgeting Segment ────────────────────────────────────────────────
 st.markdown("---")
-st.subheader("💼 Salary & Budgeting")
+st.subheader(f"💼 {month_label} Salary & Budgeting")
 
 col_inc, col_bud = st.columns(2)
 
@@ -91,7 +94,7 @@ with col_bud:
 
 # ── This Month's Key Metrics ─────────────────────────────────────────────────
 st.markdown("---")
-st.subheader("📅 This Month's Key Metrics")
+st.subheader(f"📅 {month_label} Key Metrics")
 
 # current month string
 today      = date.today()
