@@ -259,11 +259,8 @@ fig_time = px.line(
     markers=True
 )
 
-# now you can format the date-axis ticks
 fig_time.update_xaxes(tickformat="%b %d, %Y")
 
-
-# prefix all y-axis ticks with your currency symbol
 fig_time.update_yaxes(tickprefix=symbol)
 
 # show the symbol in the hover text too
@@ -274,18 +271,42 @@ fig_time.update_traces(
 st.plotly_chart(fig_time, use_container_width=True)
 
 
-# High Expense Alerts
+# ───────── High Expense Alerts ────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("🚨 High Expense Alerts")
-threshold = st.slider("Highlight transactions above this amount (SGD)", min_value=10.0, max_value=1000.0, value=200.0, step=10.0)
-high_df = filtered[filtered['AmtDisplay'] > threshold]
+
+threshold = st.slider(
+    f"Highlight transactions above this amount ({display_currency})",
+    min_value=0.0,
+    max_value=filtered["AmtDisplay"].max() * 1.5,  # or some sane upper‐bound
+    value=200.0,
+    step=1.0
+)
+
+# filter on the converted column
+high_df = filtered[filtered["AmtDisplay"] > threshold]
+
 cols = ["Date", "Description", "AmtDisplay", "Category", "Source"]
 if not high_df.empty:
-    st.warning(f"Found {len(high_df)} transactions above ${threshold:.2f}")
-    st.dataframe(high_df[cols], use_container_width=True, hide_index=True,
-                 column_config={"AmtDisplay": st.column_config.NumberColumn(format="%.2f SGD")})
+    st.warning(
+        f"Found {len(high_df)} transaction(s) above "
+        f"{display_currency} {threshold:,.2f}"
+    )
+    st.dataframe(
+        high_df[cols],
+        use_container_width=True,
+        hide_index=True,
+        column_config={
+            # format each cell with your currency
+            "AmtDisplay": st.column_config.NumberColumn(
+                format=f"%.2f {display_currency}"
+            )
+        }
+    )
 else:
-    st.success(f"No transactions exceed ${threshold:.2f}")
+    st.success(
+        f"No transactions exceed {display_currency} {threshold:,.2f}"
+    )
 
 # Transactions table
 st.markdown("---")
