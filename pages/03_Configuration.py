@@ -298,8 +298,8 @@ with col2:
         # allow deletion by primary key
         to_delete = st.multiselect(
             "Remove subscriptions (select ID)",
-            options=recur_df["Id"].tolist(),
-            format_func=lambda pk: f"{pk} – {recur_df.loc[recur_df['Id']==pk,'Description'].item()}"
+            options=recur_df["id"].tolist(),
+            format_func=lambda pk: f"{pk} – {recur_df.loc[recur_df['id']==pk,'Description'].item()}"
         )
         if st.button("Delete Selected", key="rm_recur"):
             delete_recurring(to_delete)
