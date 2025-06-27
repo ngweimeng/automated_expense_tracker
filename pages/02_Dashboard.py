@@ -7,24 +7,48 @@ from utils import init_categories, load_from_db, categorize_transactions
 
 st.set_page_config(page_title="Dashboard", layout="wide", page_icon="📊")
 st.title("💰 WeiMeng's Budget Tracker")
-st.markdown(
-    """
-## *Dashboard*
-    """)
+st.markdown("## *Dashboard*")
 
 init_categories()
 
+# 1) Load & categorize your raw data
 df = load_from_db()
-if "Date" in df.columns:
-    df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
+df["Date"] = pd.to_datetime(df["Date"], errors="coerce")
 df = categorize_transactions(df)
 
+# 2) Ask user which currency they want to see everything in
+st.markdown("---")
+display_currency = st.selectbox(
+    "🔄 Display all amounts in:",
+    ["SGD", "EUR"],
+    index=0
+)
+
+# 3) Static FX rates (you can replace with real‐time lookup if you like)
+FX = {
+    ("EUR","SGD"): 1.50,    # 1 EUR = 1.50 SGD
+    ("SGD","EUR"): 1/1.50,  # 1 SGD = 0.67 EUR
+}
+
+# 4) Make a converted‐amount column on the fly
+def convert(row):
+    src = row["Currency"]
+    amt = row["Amount"]
+    if src == display_currency:
+        return amt
+    rate = FX.get((src, display_currency))
+    # if no rate known, just leave as‐is
+    return amt * rate if rate else amt
+
+df["AmtDisplay"] = df.apply(convert, axis=1)
+
+# now carry on using df["AmtDisplay"] instead of df["Amount"]...
 valid = df["Date"].dropna()
 if valid.empty:
     st.info("No transactions to display.")
     st.stop()
 
-# Filters
+# --Filters-----------------------------------
 st.markdown("---")
 st.subheader("📊 Dashboard Filters")
 # Display current date, week, and month
@@ -94,11 +118,11 @@ with control_col:
 # Key metrics
 st.markdown("---")
 st.subheader("🎯 Key Metrics")
-total = filtered["Amount"].sum()
+total = filtered["AmtDisplay"].sum()
 days = (end_d - start_d).days + 1
 avg = total / days if days > 0 else 0
 
-cats = filtered.groupby("Category")["Amount"].sum()
+cats = filtered.groupby("Category")["AmtDisplay"].sum()
 top_cat, top_amt = (cats.idxmax(), cats.max()) if not cats.empty else ("—", 0.0)
 c1, c2, c3 = st.columns(3)
 c1.metric("Total Spent", f"SGD {total:,.2f}", border=True, help=f"over {days} days")
@@ -112,12 +136,12 @@ st.subheader("📂 Expense Summary")
 piechart_col, dataframe_col = st.columns([1, 1])
 
 with dataframe_col:
-    summary = filtered.groupby("Category")["Amount"].sum().reset_index().sort_values("Amount", ascending=False)
-    summary.loc[len(summary)] = ["Total", summary["Amount"].sum()]
-    st.dataframe(summary.style.format({"Amount":"{:.2f} SGD"}), use_container_width=True)
+    summary = filtered.groupby("Category")["AmtDisplay"].sum().reset_index().sort_values("AmtDisplay", ascending=False)
+    summary.loc[len(summary)] = ["Total", summary["AmtDisplay"].sum()]
+    st.dataframe(summary.style.format({"AmtDisplay":"{:.2f} SGD"}), use_container_width=True)
 
 with piechart_col:
-    fig = px.pie(summary.iloc[:-1], values="Amount", names="Category", title="Expenses by Category")
+    fig = px.pie(summary.iloc[:-1], values="AmtDisplay", names="Category", title="Expenses by Category")
     st.plotly_chart(fig, use_container_width=True)
 
 # Spending Over Time
@@ -125,7 +149,7 @@ st.markdown("---")
 st.subheader("📈 Spending Over Time")
 agg_level = st.selectbox("Aggregate by", ["Daily","Weekly","Monthly"], index=0)
 if agg_level == "Daily":
-    agg_df = filtered.groupby("Date")["Amount"].sum().reset_index()
+    agg_df = filtered.groupby("Date")["AmtDisplay"].sum().reset_index()
     agg_df["Label"] = agg_df["Date"].dt.strftime("%Y-%m-%d")
 elif agg_level == "Weekly":
     filtered["ISOYear"] = filtered["Date"].dt.isocalendar().year
@@ -136,12 +160,12 @@ elif agg_level == "Weekly":
         return f"{y}-W{str(w).zfill(2)} ({sd.strftime('%b %d')} – {ed.strftime('%b %d')})"
     week_info = (filtered[["ISOYear","WeekNum"]].drop_duplicates().sort_values(["ISOYear","WeekNum"]).reset_index(drop=True))
     week_info["Label"] = week_info.apply(lambda r: week_label(r["ISOYear"], r["WeekNum"]), axis=1)
-    weekly_totals = filtered.groupby(["ISOYear","WeekNum"])['Amount'].sum().reset_index()
-    agg_df = weekly_totals.merge(week_info, on=["ISOYear","WeekNum"])[["Label","Amount"]]
+    weekly_totals = filtered.groupby(["ISOYear","WeekNum"])['AmtDisplay'].sum().reset_index()
+    agg_df = weekly_totals.merge(week_info, on=["ISOYear","WeekNum"])[["Label","AmtDisplay"]]
 else:
     filtered["MonthLabel"] = filtered["Date"].dt.strftime("%B %Y")
-    agg_df = filtered.groupby("MonthLabel")['Amount'].sum().reset_index().rename(columns={"MonthLabel":"Label"})
-fig_time = px.line(agg_df, x="Label", y="Amount", title=f"{agg_level} Spending Trend", labels={"Label":agg_level, "Amount":"Amount (SGD)"}, markers=True)
+    agg_df = filtered.groupby("MonthLabel")['AmtDisplay'].sum().reset_index().rename(columns={"MonthLabel":"Label"})
+fig_time = px.line(agg_df, x="Label", y="AmtDisplay", title=f"{agg_level} Spending Trend", labels={"Label":agg_level, "AmtDisplay":"Amount (SGD)"}, markers=True)
 
 st.plotly_chart(fig_time, use_container_width=True)
 
@@ -149,12 +173,12 @@ st.plotly_chart(fig_time, use_container_width=True)
 st.markdown("---")
 st.subheader("🚨 High Expense Alerts")
 threshold = st.slider("Highlight transactions above this amount (SGD)", min_value=10.0, max_value=1000.0, value=200.0, step=10.0)
-high_df = filtered[filtered['Amount'] > threshold]
-cols = ["Date", "Description", "Amount", "Category", "Source"]
+high_df = filtered[filtered['AmtDisplay'] > threshold]
+cols = ["Date", "Description", "AmtDisplay", "Category", "Source"]
 if not high_df.empty:
     st.warning(f"Found {len(high_df)} transactions above ${threshold:.2f}")
     st.dataframe(high_df[cols], use_container_width=True, hide_index=True,
-                 column_config={"Amount": st.column_config.NumberColumn(format="%.2f SGD")})
+                 column_config={"AmtDisplay": st.column_config.NumberColumn(format="%.2f SGD")})
 else:
     st.success(f"No transactions exceed ${threshold:.2f}")
 
@@ -165,6 +189,6 @@ options = ["All"] + sorted(filtered["Category"].unique().tolist())
 sel = st.selectbox("Filter by Category", options)
 show_df = filtered if sel == "All" else filtered[filtered["Category"] == sel]
 if not show_df.empty:
-    st.dataframe(show_df[["Date","Description","Amount","Category","Source"]].sort_values("Date"), use_container_width=True)
+    st.dataframe(show_df[["Date","Description","AmtDisplay","Category","Source"]].sort_values("Date"), use_container_width=True)
 else:
     st.info("No transactions to display.")
