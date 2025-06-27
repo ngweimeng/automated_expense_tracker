@@ -29,7 +29,11 @@ st.title("💰 WeiMeng's Budget Tracker")
 def get_fx_rate(from_ccy: str, to_ccy: str) -> float:
     url  = f"https://api.exchangerate.host/convert?from={from_ccy}&to={to_ccy}&amount=1"
     resp = requests.get(url).json()
-    # If the API returns an "info" object, use its rate; otherwise fall back to "result"
+
+    # DEBUG: inspect exactly what we got back
+    st.write("🔍 FX response:", resp)
+
+    # now pick the rate
     if info := resp.get("info"):
         return info.get("rate", 1.0)
     return resp.get("result", 1.0)
@@ -50,7 +54,6 @@ with col2:
     other = "EUR" if display_currency == "SGD" else "SGD"
     rate  = get_fx_rate(other, display_currency)
     st.caption(f"1 {other} = {rate:.4f} {display_currency}")
-    st.write("🔍 FX response:", resp)
 
 
 # ── 4) Load & categorize your raw data ─────────────────────────────────────────
