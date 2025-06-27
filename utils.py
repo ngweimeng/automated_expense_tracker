@@ -196,7 +196,7 @@ def upsert_keyword(category: str, keyword: str) -> None:
     sb.table("category_keywords") \
       .upsert(
         {"Category_Id": cat_id, "Keyword": keyword},
-        on_conflict=["Category_Id","Keyword"]
+        on_conflict="category_keywords_Category_Id_Keyword_key"
       ) \
       .execute()
 
