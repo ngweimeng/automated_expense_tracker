@@ -193,30 +193,72 @@ with piechart_col:
     )
     st.plotly_chart(fig, use_container_width=True)
 
-# Spending Over Time
+# ───────── Spending Over Time ────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📈 Spending Over Time")
+
 agg_level = st.selectbox("Aggregate by", ["Daily","Weekly","Monthly"], index=0)
+
 if agg_level == "Daily":
     agg_df = filtered.groupby("Date")["AmtDisplay"].sum().reset_index()
     agg_df["Label"] = agg_df["Date"].dt.strftime("%Y-%m-%d")
+
 elif agg_level == "Weekly":
     filtered["ISOYear"] = filtered["Date"].dt.isocalendar().year
     filtered["WeekNum"] = filtered["Date"].dt.isocalendar().week
+
     def week_label(y, w):
         sd = pd.to_datetime(f"{y}-W{w}-1", format="%G-W%V-%u")
         ed = sd + pd.Timedelta(days=6)
         return f"{y}-W{str(w).zfill(2)} ({sd.strftime('%b %d')} – {ed.strftime('%b %d')})"
-    week_info = (filtered[["ISOYear","WeekNum"]].drop_duplicates().sort_values(["ISOYear","WeekNum"]).reset_index(drop=True))
-    week_info["Label"] = week_info.apply(lambda r: week_label(r["ISOYear"], r["WeekNum"]), axis=1)
-    weekly_totals = filtered.groupby(["ISOYear","WeekNum"])['AmtDisplay'].sum().reset_index()
+
+    week_info = (
+        filtered[["ISOYear","WeekNum"]]
+        .drop_duplicates()
+        .sort_values(["ISOYear","WeekNum"])
+        .reset_index(drop=True)
+    )
+    week_info["Label"] = week_info.apply(
+        lambda r: week_label(r["ISOYear"], r["WeekNum"]),
+        axis=1
+    )
+
+    weekly_totals = filtered.groupby(["ISOYear","WeekNum"])["AmtDisplay"].sum().reset_index()
     agg_df = weekly_totals.merge(week_info, on=["ISOYear","WeekNum"])[["Label","AmtDisplay"]]
-else:
+
+else:  # Monthly
     filtered["MonthLabel"] = filtered["Date"].dt.strftime("%B %Y")
-    agg_df = filtered.groupby("MonthLabel")['AmtDisplay'].sum().reset_index().rename(columns={"MonthLabel":"Label"})
-fig_time = px.line(agg_df, x="Label", y="AmtDisplay", title=f"{agg_level} Spending Trend", labels={"Label":agg_level, "AmtDisplay":"Amount (SGD)"}, markers=True)
+    agg_df = (
+        filtered
+        .groupby("MonthLabel")["AmtDisplay"]
+        .sum()
+        .reset_index()
+        .rename(columns={"MonthLabel":"Label"})
+    )
+
+# build the line chart, with dynamic axis title
+fig_time = px.line(
+    agg_df,
+    x="Label",
+    y="AmtDisplay",
+    title=f"{agg_level} Spending Trend",
+    labels={
+        "Label": agg_level,
+        "AmtDisplay": f"Amount ({display_currency})"
+    },
+    markers=True
+)
+
+# prefix all y-axis ticks with your currency symbol
+fig_time.update_yaxes(tickprefix=symbol)
+
+# show the symbol in the hover text too
+fig_time.update_traces(
+    hovertemplate="%{x}<br>" + symbol + "%{y:,.2f}"
+)
 
 st.plotly_chart(fig_time, use_container_width=True)
+
 
 # High Expense Alerts
 st.markdown("---")
