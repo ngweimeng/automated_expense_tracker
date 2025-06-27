@@ -139,34 +139,45 @@ def load_category_list() -> List[str]:
     return [r["Name"] for r in data]
 
 def load_keywords_for(category: str) -> pd.DataFrame:
-    """Return a DataFrame of keywords for the given category."""
+    """Return a DataFrame with a single column 'Keyword' for the given category."""
     sb = get_supabase()
-    # first fetch the category id
-    cat = (
-      sb.table("categories")
-        .select("Id")
-        .eq("Name", category)
-        .execute()
-        .data or []
+
+    # 1) Find the category’s Id
+    resp_cat = (
+        sb.table("categories")        # note exact table name with proper casing
+          .select("Id")
+          .eq("Name", category)
+          .execute()
     )
-    if not cat:
+    cat_rows = resp_cat.data or []
+    if not cat_rows:
+        # no such category
         return pd.DataFrame(columns=["Keyword"])
 
-    cat_id = cat[0]["Id"]
-    data = (
-      sb.table("category_keywords")   
-        .select("Keyword")
-        .eq("Category_Id", cat_id)
-        .order("Keyword")
-        .execute()
-        .data or []
-    )
+    cat_id = cat_rows[0]["Id"]
 
-    df = pd.DataFrame(data)
-    # normalize column name to exactly "Keyword"
-    if "keyword" in df.columns:
-        df = df.rename(columns={"keyword": "Keyword"})
-    return df
+    # 2) Fetch keywords for that Id
+    resp_kw = (
+        sb.table("category_keywords")  # exact name of your keywords table
+          .select("Keyword")
+          .eq("Category_Id", cat_id)
+          .order("Keyword", desc=False)
+          .execute()
+    )
+    kw_rows = resp_kw.data or []
+    if not kw_rows:
+        # category exists but has no keywords
+        return pd.DataFrame(columns=["Keyword"])
+
+    # 3) Build DataFrame directly
+    df = pd.DataFrame(kw_rows)
+
+    # 4) Ensure exactly one column named "Keyword"
+    #    (if your Supabase column really is "Keyword", this is already correct)
+    if "Keyword" not in df.columns:
+        raise RuntimeError(f"Expected column 'Keyword' in response but got {df.columns.tolist()}")
+
+    return df[["Keyword"]]
 
 def upsert_category(name: str) -> int:
     """Create a new category if missing; return its Id."""
