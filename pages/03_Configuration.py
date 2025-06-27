@@ -280,7 +280,7 @@ with col1:
                         st.warning(f"Skipped {dup_count} duplicate{'s' if dup_count>1 else ''}.")
 
 with col2:
-    st.subheader("Step 3: 📆 Recurring Subscriptions")
+    st.subheader("📆 Step 3: Recurring Subscriptions")
     with st.expander("Manage recurring subscriptions", expanded=False):
 
 
