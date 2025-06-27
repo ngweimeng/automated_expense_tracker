@@ -18,7 +18,6 @@ with col1:
     st.markdown("## *Dashboard*")
 with col2:
     # 2) Ask user which currency they want to see everything in
-    st.markdown("---")
     display_currency = st.selectbox(
         "🔄 Display all amounts in:",
         ["SGD", "EUR"],
