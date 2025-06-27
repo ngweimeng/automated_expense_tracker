@@ -308,13 +308,25 @@ else:
         f"No transactions exceed {display_currency} {threshold:,.2f}"
     )
 
-# Transactions table
+# ───────── Transactions Table ────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("🧾 Transactions")
+
 options = ["All"] + sorted(filtered["Category"].unique().tolist())
 sel = st.selectbox("Filter by Category", options)
+
 show_df = filtered if sel == "All" else filtered[filtered["Category"] == sel]
+
 if not show_df.empty:
-    st.dataframe(show_df[["Date","Description","AmtDisplay","Category","Source"]].sort_values("Date"), use_container_width=True)
+    st.dataframe(
+        show_df[["Date", "Description", "AmtDisplay", "Category", "Source"]]
+           .sort_values("Date"),
+        use_container_width=True,
+        column_config={
+            "AmtDisplay": st.column_config.NumberColumn(
+                format=f"%.2f {display_currency}"
+            )
+        }
+    )
 else:
     st.info("No transactions to display.")
