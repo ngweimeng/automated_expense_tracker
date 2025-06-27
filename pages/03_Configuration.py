@@ -391,9 +391,9 @@ with col1:
     else:
         st.info("No categories defined yet.")
 
-    col1, col2 = st.columns(2)
+    col3, col4 = st.columns(2)
     # 2) Add a new category
-    with col1:
+    with col3:
         with st.form("add_category", clear_on_submit=True):
             new_cat = st.text_input("New category name")
             if st.form_submit_button("Create Category") and new_cat:
@@ -402,7 +402,7 @@ with col1:
                 st.rerun()
 
     # 3) Delete selected categories
-    with col2:
+    with col4:
         to_del = st.multiselect(
             "Delete categories",
             options=cats,
