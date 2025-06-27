@@ -9,7 +9,7 @@ import datetime
 
 
 from gmail_api import init_gmail_service, get_email_message_details, search_emails
-from utils import load_from_db, save_to_db, categorize_transactions, init_categories, save_categories, load_recurring, save_recurring_row, delete_recurring, load_category_mapping, upsert_category_mapping, delete_category_mapping, load_category_list, upsert_category, delete_category, upsert_keyword, delete_keyword, load_keywords_for
+from utils import load_from_db, save_to_db, categorize_transactions, load_recurring, save_recurring_row, delete_recurring, load_category_mapping, load_category_list, upsert_category, delete_category, upsert_keyword, delete_keyword, load_keywords_for
 from dateutil import parser as date_parser
 from zoneinfo import ZoneInfo
 from email.utils import parsedate_to_datetime
