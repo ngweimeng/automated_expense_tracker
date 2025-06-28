@@ -15,7 +15,7 @@ st.markdown(
 ---
 
 ### 🎯 Motivation
-Keeping track of expenses and savings has always been a challenge for me. I tried off-the-shelf budgeting apps and even Excel, but manual data entry felt too cumbersome—and I inevitably fell off the wagon. So I decided to build my own tailored solution that automates as much as possible and gives me clear, timely insights into my spending habits.
+Keeping track of expenses and savings has always been a challenge for me. I tried off-the-shelf budgeting apps and even Excel, but manual data entry felt too cumbersome and I inevitably fell off the wagon. So I decided to build my own tailored solution that automates as much as possible and gives me clear, timely insights into my spending habits.
 
 ### 🔧 How It Works
 1. **Automated Extraction**  
