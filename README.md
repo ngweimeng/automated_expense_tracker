@@ -1,13 +1,32 @@
 # WeiMeng’s Budget Tracker
 
-A simple, Streamlit-powered app to automatically parse, categorize, and visualize your credit-card transactions—no manual data entry required for the lazy and forgetful.
+A Streamlit app that automatically ingests, categorizes, and visualizes your credit-card (and other) transactions. Minimize manual data entry required for the chronically busy (or forgetful).
 
 ---
 
-## Motivation
+## 🎯 Motivation
 
-Keeping track of every transaction by hand is tedious—and easy to forget. This project exists to:
+Manually logging every expense is tedious—and all too easy to fall behind. This tool is designed to:
 
-- **Automate** PDF parsing of credit-card statements  
-- **Eliminate** manual entry for faster, hassle-free budgeting  
-- **Remind** you of spending patterns without extra effort  
+- **Automate** PDF parsing of email receipts and credit-card statements  
+- **Reduce** manual entry so you can focus on budgeting, not busywork  
+- **Surface** your spending patterns with zero extra effort  
+
+---
+
+## 🔧 How It Works
+
+1. **Automated Extraction**  
+   - Connects securely to your Gmail via the Gmail API  
+   - Scrapes transaction details from Instarem, Wise, and other email receipts  
+   - Imports those entries directly into your dashboard  
+
+2. **Recurring Transactions**  
+   - Define any subscription, rent, or regular payment  
+   - Automatically logs them on your chosen schedule  
+
+3. **Manual Entry**  
+   - For one-off expenses (e.g., peer-to-peer transfers, cash purchases)  
+   - Simply fill out a quick form—no PDF parsing needed  
+
+---
