@@ -291,7 +291,12 @@ elif agg_level == "Weekly":
         axis=1
     )
 
-    weekly_totals = filtered.groupby(["ISOYear","WeekNum"])["AmtDisplay"].sum().reset_index()
+    weekly_totals = (
+        filtered
+        .groupby(["ISOYear","WeekNum"])["AmtDisplay"]
+        .sum()
+        .reset_index()
+    )
     agg_df = weekly_totals.merge(week_info, on=["ISOYear","WeekNum"])[["Label","AmtDisplay"]]
 
 else:  # Monthly
@@ -304,30 +309,30 @@ else:  # Monthly
         .rename(columns={"MonthLabel":"Label"})
     )
 
-# build the line chart, with dynamic axis title
+# build the line chart, now always using "Label" on the x-axis
 fig_time = px.line(
     agg_df,
-    x="Date",
+    x="Label",
     y="AmtDisplay",
     title=f"{agg_level} Spending Trend",
     labels={
-        "Date":       agg_level,        
-        "AmtDisplay": f"Amount ({display_currency})"
+        "Label":       agg_level,        
+        "AmtDisplay":  f"Amount ({display_currency})"
     },
     markers=True
 )
 
-fig_time.update_xaxes(tickformat="%b %d, %Y")
+# if daily, format the axis as dates
+if agg_level == "Daily":
+    fig_time.update_xaxes(tickformat="%b %d, %Y")
 
 fig_time.update_yaxes(tickprefix=symbol)
 
-# show the symbol in the hover text too
 fig_time.update_traces(
     hovertemplate="%{x}<br>" + symbol + "%{y:,.2f}"
 )
 
 st.plotly_chart(fig_time, use_container_width=True)
-
 
 # ───────── High Expense Alerts ────────────────────────────────────────────────
 st.markdown("---")
