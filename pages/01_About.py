@@ -13,20 +13,28 @@ st.markdown(
 ## *About the Project*
 
 ---
-### 🎯 Motivation
-I wanted an easy way to scan my credit card transactions without manually entering each one, since I tend to be lazy and often forget.
 
-### 🔧 Get Started
-1. **Settings**  
-   Upload PDF statements & manage your transaction categories  
-2. **Dashboard**  
-   Explore summaries, trends over time, and high-spend alerts
+### 🎯 Motivation
+Keeping track of expenses and savings has always been a challenge for me. I tried off-the-shelf budgeting apps and even Excel, but manual data entry felt too cumbersome—and I inevitably fell off the wagon. So I decided to build my own tailored solution that automates as much as possible and gives me clear, timely insights into my spending habits.
+
+### 🔧 How It Works
+1. **Automated Extraction**  
+   - Connects to your Gmail via the Gmail API  
+   - Scrapes transaction details from Instarem and Wise email receipts  
+   - Automatically imports those records into your dashboard  
+
+2. **Recurring Transactions**  
+   - Define any regular payments (e.g., subscriptions, rent)  
+   - The app will auto-add them on the schedule you choose  
+
+3. **Manual Entry**  
+   - For one-off or non-email transactions (e.g., peer-to-peer transfers)  
+   - Add them quickly via a simple form  
 
 ---
-*Developed by WeiMeng.*  
-This app is open source and free to use. Contributions are welcome!
 
-*Get in Touch:* [<img src='https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png' width='20'/> WeiMeng's GitHub](https://github.com/ngweimeng)
+*Developed by WeiMeng.* This project is **open source**—contributions welcome!  
+[![GitHub](https://github.githubassets.com/images/modules/logos_page/GitHub-Mark.png)](https://github.com/ngweimeng) Connect on GitHub  
 """,
     unsafe_allow_html=True
 )
