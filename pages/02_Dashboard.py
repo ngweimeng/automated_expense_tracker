@@ -29,7 +29,7 @@ with col1:
     st.markdown("## *Dashboard*")
 with col2:
     display_currency = st.selectbox(
-        "🔄 Display all amounts in:", ["SGD", "EUR"], index=0
+        "🔄 Display all amounts in:", ["EUR", "SGD"], index=0
     )
     currency_symbols = {"SGD": "S$", "EUR": "€", "USD": "$", "GBP": "£"}
     symbol = currency_symbols.get(display_currency, display_currency + " ")
