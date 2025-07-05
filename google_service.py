@@ -4,7 +4,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 from google.auth.transport.requests import Request
-
+from google.auth.exceptions import RefreshError
 
 def create_service(client_secret_file, api_name, api_version, *scopes, prefix=''):
     """
@@ -42,18 +42,36 @@ def create_service(client_secret_file, api_name, api_version, *scopes, prefix=''
 
     # If no valid credentials, perform OAuth flow or refresh
     if not creds or not creds.valid:
+        # 1) Try to refresh an expired token
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            flow = InstalledAppFlow.from_client_secrets_file(client_secret_file, SCOPES)
             try:
-                # Try local server flow (works on dev machine)
-                creds = flow.run_local_server(port=0)
+                creds.refresh(Request())
+            except RefreshError:
+                # Refresh token was revoked or expired: delete and force re-auth
+                token_file.unlink(missing_ok=True)
+                creds = None
+
+        # 2) If still no valid creds, run the OAuth flow
+        if not creds:
+            flow = InstalledAppFlow.from_client_secrets_file(
+                client_secret_file,
+                SCOPES
+            )
+            try:
+                creds = flow.run_local_server(
+                    port=0,
+                    access_type='offline',   # request a refresh token
+                    prompt='consent'         # force the consent screen every time
+                )
             except Exception:
-                # Fallback to console flow if no browser available
-                creds = flow.run_console()
-        # Save the refreshed/new credentials
-        token_file.write_text(creds.to_json())
+                # Fallback for environments without a browser
+                creds = flow.run_console(
+                    access_type='offline',
+                    prompt='consent'
+                )
+
+            # Save the new credentials
+            token_file.write_text(creds.to_json())
 
     # Build service client
     try:
