@@ -49,7 +49,7 @@ with st.expander("Fetch transactions automatically via Gmail API (Wise & Instare
         rows = []
         # Wise
         wise_q = 'from:noreply@wise.com subject:"spent at"'
-        for msg in search_emails(service, wise_q, max_results=10):
+        for msg in search_emails(service, wise_q, max_results=30):
             d      = get_email_message_details(service, msg["id"])
             dt_utc = parsedate_to_datetime(d["date"])
             dt_sgt = dt_utc.astimezone(ZoneInfo("UTC"))
