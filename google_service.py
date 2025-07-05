@@ -24,63 +24,68 @@ def create_service(client_secret_file, api_name, api_version, *scopes, prefix=''
     """
     SCOPES = list(scopes)
 
-    # Determine base directory for token storage (use /tmp in cloud)
+    # --- Prepare token file ---
     base_dir = Path(os.getenv('BASE_TOKEN_DIR', '/tmp'))
     token_dir = base_dir / 'token files'
     token_dir.mkdir(parents=True, exist_ok=True)
     token_file = token_dir / f'token_{api_name}_{api_version}{prefix}.json'
 
-    # If a token is provided via environment, write it once
+    # If someone injected a token via ENV, write it once
     token_json = os.getenv('GMAIL_OAUTH_TOKEN')
     if token_json and not token_file.exists():
         token_file.write_text(token_json)
 
     creds = None
-    # Attempt to load existing credentials
     if token_file.exists():
         creds = Credentials.from_authorized_user_file(str(token_file), SCOPES)
 
-    # If no valid credentials, perform OAuth flow or refresh
+    # --- Refresh or re-authorize ---
     if not creds or not creds.valid:
-        # 1) Try to refresh an expired token
+        # Try to refresh an expired refresh_token
         if creds and creds.expired and creds.refresh_token:
             try:
                 creds.refresh(Request())
             except RefreshError:
-                # Refresh token was revoked or expired: delete and force re-auth
+                # Token revoked or expired → delete and force new auth
                 token_file.unlink(missing_ok=True)
                 creds = None
 
-        # 2) If still no valid creds, run the OAuth flow
+        # No valid creds? Run OAuth flow
         if not creds:
             flow = InstalledAppFlow.from_client_secrets_file(
                 client_secret_file,
                 SCOPES
             )
+
+            # 1) Try running a local server (dev machines)
             try:
                 creds = flow.run_local_server(
                     port=0,
                     access_type='offline',   # request a refresh token
-                    prompt='consent'         # force the consent screen every time
+                    prompt='consent'         # force the consent screen
                 )
             except Exception:
-                # Fallback for environments without a browser
-                creds = flow.run_console(
+                # 2) Fallback to manual console flow (no browser)
+                auth_url, _ = flow.authorization_url(
                     access_type='offline',
                     prompt='consent'
                 )
+                print("Please go to this URL and authorize the application:")
+                print(auth_url)
+                code = input("Enter the authorization code here: ")
+                flow.fetch_token(code=code)
+                creds = flow.credentials
 
-            # Save the new credentials
+            # Save fresh credentials
             token_file.write_text(creds.to_json())
 
-    # Build service client
+    # --- Build the service client ---
     try:
         service = build(api_name, api_version, credentials=creds, static_discovery=False)
         print(f"{api_name} {api_version} service created successfully")
         return service
     except Exception as e:
-        print(e)
-        print(f"Failed to create service instance for {api_name}")
-        # Remove bad token to force re-auth next time
+        print(f"Error creating {api_name} service:", e)
+        # Bad token? remove and try again next time
         token_file.unlink(missing_ok=True)
         return None
