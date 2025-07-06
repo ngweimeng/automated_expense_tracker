@@ -265,13 +265,14 @@ recur_df["AmtDisplay"] = recur_df.apply(convert_to_display, axis=1)
 # layout: detailed table and category pie chart
 table_col, pie_col = st.columns([1, 1])
 with table_col:
+    # append total row
+    total_fixed = recur_df["AmtDisplay"].sum()
+    rc_summary = recur_df.groupby(["Description","Category"])["AmtDisplay"].sum().reset_index()
+    rc_summary.loc[len(rc_summary)] = ["Total", "", total_fixed]
     fmt = lambda x: f"{symbol}{x:,.2f}"
-    styled_rc = recur_df[["Description", "Category", "AmtDisplay"]]
-    styled_rc = styled_rc.style.format({"AmtDisplay": fmt})
+    styled_rc = rc_summary.style.format({"AmtDisplay": fmt})
     st.dataframe(styled_rc, use_container_width=True)
 with pie_col:
-    total_fixed = recur_df["AmtDisplay"].sum()
-    st.metric("Total Fixed Costs", f"{symbol}{total_fixed:,.2f}")
     rc_pie = px.pie(
         recur_df, values="AmtDisplay", names="Category",
         title="Fixed Costs by Category", hover_data=["AmtDisplay"]
