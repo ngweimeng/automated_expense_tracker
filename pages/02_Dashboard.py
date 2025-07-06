@@ -39,6 +39,10 @@ with col2:
 FX = {
     ("EUR", "SGD"): 1.50,     # 1 EUR → 1.50 SGD
     ("SGD", "EUR"): 1/1.50,   # 1 SGD → 0.67 EUR
+    ("USD", "EUR"): 0.90,     # 1 USD → 0.90 EUR  
+    ("USD", "SGD"): 0.90 * 1.50, # 1 USD → 1.35 SGD
+    ("EUR", "USD"): 1/0.90,   # 1 EUR → ~1.11 USD
+    ("SGD", "USD"): (1/1.50) * (1/0.90), # chained via EUR
 }
 
 # ── 4) Load & categorize your raw data ────────────────────────────────────────
@@ -107,16 +111,6 @@ m_df   = df.loc[mask]
 
 # actual spent in display currency
 m_total = m_df["AmtDisplay"].sum()
-
-# compute remaining & saved in display currency
-# note: if you want to convert budget_amount_eur→display, you'd need FX here;
-# otherwise we assume income/budget in EUR and metrics in EUR.
-# To keep everything in your display_currency, you could:
-#    rate_eur = FX.get(("EUR", display_currency), 1.0)
-#    budget_amount = budget_amount_eur * rate_eur
-#    income = income_eur * rate_eur
-#    then use those in the metrics below.
-# For now we'll show budgets in EUR if display_currency=="EUR", else leave as-is.
 
 if display_currency != "EUR":
     # convert your EUR inputs into display_ccy
