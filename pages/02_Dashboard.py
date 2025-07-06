@@ -263,7 +263,7 @@ recur_df = categorize_transactions(recur_df)
 # convert to display currency
 recur_df["AmtDisplay"] = recur_df.apply(convert_to_display, axis=1)
 # layout: detailed table and category pie chart
-table_col, pie_col = st.columns([1, 1])
+pie_col, table_col = st.columns([1, 1])
 with table_col:
     # summary table with total
     rc_summary = recur_df.groupby(["Description", "Category"])["AmtDisplay"].sum().reset_index()
