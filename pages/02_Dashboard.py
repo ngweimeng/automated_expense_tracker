@@ -265,7 +265,7 @@ total_fixed = recur_df["AmtDisplay"].sum()
 st.metric("Total Fixed Costs", f"{symbol}{total_fixed:,.2f}")
 # display breakdown table
 st.dataframe(
-    recur_df[["Date", "Description", "AmtDisplay", "Category"]]
+    recur_df[["Description", "AmtDisplay"]]
         .sort_values("Date"),
     use_container_width=True
 )
