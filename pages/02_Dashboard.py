@@ -266,7 +266,7 @@ st.metric("Total Fixed Costs", f"{symbol}{total_fixed:,.2f}")
 # display breakdown table
 st.dataframe(
     recur_df[["Description", "AmtDisplay"]]
-        .sort_values("Date"),
+        .sort_values("Day"),
     use_container_width=True
 )
 
