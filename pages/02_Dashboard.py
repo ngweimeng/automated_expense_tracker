@@ -252,16 +252,22 @@ st.subheader("🏠 Fixed Costs")
 # load recurring transactions
 t = load_recurring()
 recur_df = t if isinstance(t, pd.DataFrame) else pd.DataFrame(t)
-# categorize recurring items (no Date column expected)
+# manually add fixed costs entries
+manual = pd.DataFrame([
+    {"Description": "OPENAI *CHATGPT SUBSCR", "Category": "🏠 Home & Utilities", "Currency": "USD", "Amount": 21.80},
+    {"Description": "Orange Mobile", "Category": "🏠 Home & Utilities", "Currency": "EUR", "Amount": 39.99},
+])
+recur_df = pd.concat([recur_df, manual], ignore_index=True)
+# categorize recurring items
 recur_df = categorize_transactions(recur_df)
 # convert to display currency
 recur_df["AmtDisplay"] = recur_df.apply(convert_to_display, axis=1)
 # layout: detailed table and category pie chart
 table_col, pie_col = st.columns([1, 1])
 with table_col:
-    # append total row
-    total_fixed = recur_df["AmtDisplay"].sum()
-    rc_summary = recur_df.groupby(["Description","Category"])["AmtDisplay"].sum().reset_index()
+    # summary table with total
+    rc_summary = recur_df.groupby(["Description", "Category"])["AmtDisplay"].sum().reset_index()
+    total_fixed = rc_summary["AmtDisplay"].sum()
     rc_summary.loc[len(rc_summary)] = ["Total", "", total_fixed]
     fmt = lambda x: f"{symbol}{x:,.2f}"
     styled_rc = rc_summary.style.format({"AmtDisplay": fmt})
