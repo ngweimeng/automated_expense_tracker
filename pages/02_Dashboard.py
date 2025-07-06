@@ -258,7 +258,7 @@ st.subheader("🏠 Fixed Costs")
 # load recurring transactions
 t = load_recurring()
 recur_df = t if isinstance(t, pd.DataFrame) else pd.DataFrame(t)
-# categorize recurring items
+# categorize recurring items (no Date column expected)
 recur_df = categorize_transactions(recur_df)
 # convert to display currency
 recur_df["AmtDisplay"] = recur_df.apply(convert_to_display, axis=1)
@@ -270,6 +270,8 @@ with table_col:
     styled_rc = styled_rc.style.format({"AmtDisplay": fmt})
     st.dataframe(styled_rc, use_container_width=True)
 with pie_col:
+    total_fixed = recur_df["AmtDisplay"].sum()
+    st.metric("Total Fixed Costs", f"{symbol}{total_fixed:,.2f}")
     rc_pie = px.pie(
         recur_df, values="AmtDisplay", names="Category",
         title="Fixed Costs by Category", hover_data=["AmtDisplay"]
