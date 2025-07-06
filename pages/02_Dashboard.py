@@ -8,6 +8,7 @@ from utils import (
     categorize_transactions,
     load_category_list,
     load_category_mapping,
+    load_recurring
 )
 
 today = date.today()
@@ -214,7 +215,7 @@ with control_col:
             start_d, end_d = valid.min(), valid.max()
 
 
-# ───────── Expense summary + pie ─────────────────────────────────────────────
+# ───────── Expense summary─────────────────────────────────────────────
 st.markdown("---")
 st.subheader("📂 Expense Summary")
 
@@ -250,6 +251,24 @@ with piechart_col:
         hovertemplate="%{label}: " + symbol + "%{value:,.2f} (%{percent})"
     )
     st.plotly_chart(fig, use_container_width=True)
+
+# ───────── Fixed Costs ─────────────────────────────────────────────────────────
+st.markdown("---")
+st.subheader("🏠 Fixed Costs")
+# load recurring transactions
+t = load_recurring()
+recur_df = t if isinstance(t, pd.DataFrame) else pd.DataFrame(t)
+# convert fixed costs to display currency
+recur_df["AmtDisplay"] = recur_df.apply(convert_to_display, axis=1)
+# total fixed costs metric
+total_fixed = recur_df["AmtDisplay"].sum()
+st.metric("Total Fixed Costs", f"{symbol}{total_fixed:,.2f}")
+# display breakdown table
+st.dataframe(
+    recur_df[["Date", "Description", "AmtDisplay", "Category"]]
+        .sort_values("Date"),
+    use_container_width=True
+)
 
 # ───────── Spending Over Time ────────────────────────────────────────────────
 st.markdown("---")
