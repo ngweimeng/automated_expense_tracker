@@ -258,16 +258,26 @@ st.subheader("🏠 Fixed Costs")
 # load recurring transactions
 t = load_recurring()
 recur_df = t if isinstance(t, pd.DataFrame) else pd.DataFrame(t)
-# convert fixed costs to display currency
+# categorize recurring items
+recur_df = categorize_transactions(recur_df)
+# convert to display currency
 recur_df["AmtDisplay"] = recur_df.apply(convert_to_display, axis=1)
-# total fixed costs metric
-total_fixed = recur_df["AmtDisplay"].sum()
-st.metric("Total Fixed Costs", f"{symbol}{total_fixed:,.2f}")
-# display breakdown table
-st.dataframe(
-    recur_df[["Description", "AmtDisplay"]],
-    use_container_width=True
-)
+# layout: detailed table and category pie chart
+table_col, pie_col = st.columns([1, 1])
+with table_col:
+    fmt = lambda x: f"{symbol}{x:,.2f}"
+    styled_rc = recur_df[["Description", "Category", "AmtDisplay"]]
+    styled_rc = styled_rc.style.format({"AmtDisplay": fmt})
+    st.dataframe(styled_rc, use_container_width=True)
+with pie_col:
+    rc_pie = px.pie(
+        recur_df, values="AmtDisplay", names="Category",
+        title="Fixed Costs by Category", hover_data=["AmtDisplay"]
+    )
+    rc_pie.update_traces(
+        hovertemplate="%{label}: " + symbol + "%{value:,.2f} (%{percent})"
+    )
+    st.plotly_chart(rc_pie, use_container_width=True)
 
 # ───────── Spending Over Time ────────────────────────────────────────────────
 st.markdown("---")
