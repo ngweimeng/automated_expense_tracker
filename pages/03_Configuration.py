@@ -331,13 +331,17 @@ with col2:
                 st.success(f"Saved subscription (ID {new_id}).")
                 st.rerun()
 
-        # ───────── Auto-Record Today’s Subscriptions ────────────────────────────────
+        # ───────── Auto-Record Today’s Subscriptions + Bulk Month Insert ──────────
+        st.markdown("---")
+        st.markdown("**Auto-record & bulk insert**")
+
+        # --- Auto-record today's due items (same logic as your original) ---
         today      = datetime.datetime.now(tz=ZoneInfo("Europe/Luxembourg"))
         today_day  = today.day
         due        = recur_df.query("Day == @today_day") if not recur_df.empty else pd.DataFrame()
 
         if not due.empty:
-            # Build the list of rows to insert
+            # Build rows for today (timestamp at local midnight)
             rows = []
             for _, r in due.iterrows():
                 dt = today.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -351,18 +355,12 @@ with col2:
 
             # Load existing transactions for dedupe
             raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
-            raw["Date"]   = (
-                pd.to_datetime(raw["Date"], utc=True)
-                .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            )
+            raw["Date"]   = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
             raw["Amount"] = raw["Amount"].astype(float)
 
             # Normalize and dedupe the new rows
             new_df = pd.DataFrame(rows)
-            new_df["Date"]   = (
-                pd.to_datetime(new_df["Date"], utc=True)
-                .dt.strftime("%Y-%m-%d %H:%M:%S %Z")
-            )
+            new_df["Date"]   = pd.to_datetime(new_df["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
             new_df["Amount"] = new_df["Amount"].astype(float)
 
             merged = new_df.merge(
@@ -373,10 +371,81 @@ with col2:
             )
             to_save = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
 
-            # Insert without any notifications
             if not to_save.empty:
                 for src, grp in to_save.groupby("Source"):
                     save_to_db(grp.drop(columns=["Source"]), src)
+                st.success(f"Recorded {len(to_save)} due subscription{'s' if len(to_save)!=1 else ''} for today.")
+                st.rerun()
+
+        # --- Bulk add for an entire month (button) ---
+        import calendar  # safe to import here; no conflict if already imported
+
+        st.markdown("**Bulk-add recurring transactions for a month**")
+        LUX = ZoneInfo("Europe/Luxembourg")
+        default_month_date = today.date().replace(day=1)
+
+        target_date = st.date_input(
+            "Target month",
+            value=default_month_date,
+            help="Pick any day in the target month; only month & year are used.",
+            key="recur_month_picker"
+        )
+
+        col_a, col_b = st.columns([1, 2])
+        with col_a:
+            add_for_month = st.button("Add recurring for month", use_container_width=True, key="btn_add_recur_month")
+
+        if add_for_month:
+            if recur_df.empty:
+                st.info("No recurring subscriptions defined.")
+            else:
+                year, month = target_date.year, target_date.month
+                last_day = calendar.monthrange(year, month)[1]
+
+                # Build candidate rows for whole month
+                rows = []
+                for _, r in recur_df.iterrows():
+                    d = int(r["Day"])
+                    if 1 <= d <= last_day:
+                        dt = datetime.datetime(year, month, d, 0, 0, 0, tzinfo=LUX)
+                        rows.append({
+                            "Date":        dt,
+                            "Description": r["Description"],
+                            "Amount":      float(r["Amount"]),
+                            "Currency":    r["Currency"],
+                            "Source":      r["Source"],
+                        })
+
+                if not rows:
+                    st.info(f"Nothing to insert for {year}-{month:02d}.")
+                else:
+                    # Load existing for dedupe
+                    raw = load_from_db()[["Date","Description","Amount","Currency","Source"]]
+                    raw["Date"]   = pd.to_datetime(raw["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                    raw["Amount"] = raw["Amount"].astype(float)
+
+                    new_df = pd.DataFrame(rows)
+                    new_df["Date"]   = pd.to_datetime(new_df["Date"], utc=True).dt.strftime("%Y-%m-%d %H:%M:%S %Z")
+                    new_df["Amount"] = new_df["Amount"].astype(float)
+
+                    merged = new_df.merge(
+                        raw,
+                        on=["Date","Description","Amount","Currency","Source"],
+                        how="left",
+                        indicator=True
+                    )
+                    to_save = merged[merged["_merge"] == "left_only"].drop(columns=["_merge"])
+
+                    if to_save.empty:
+                        st.info(f"All recurring entries for {year}-{month:02d} already exist. No inserts.")
+                    else:
+                        inserted = 0
+                        for src, grp in to_save.groupby("Source"):
+                            save_to_db(grp.drop(columns=["Source"]), src)
+                            inserted += len(grp)
+                        st.success(f"Inserted {inserted} transaction{'s' if inserted != 1 else ''} for {year}-{month:02d}.")
+                        st.rerun()
+
 
 # ───────── Manage Categories & Keywords ────────────────────────────────────────
 st.markdown("---")
