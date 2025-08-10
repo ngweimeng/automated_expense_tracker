@@ -249,15 +249,11 @@ with piechart_col:
 # ───────── Fixed Costs ─────────────────────────────────────────────────────────
 st.markdown("---")
 st.subheader("🏠 Fixed Costs")
+
 # load recurring transactions
 t = load_recurring()
 recur_df = t if isinstance(t, pd.DataFrame) else pd.DataFrame(t)
-# manually add fixed costs entries
-manual = pd.DataFrame([
-    {"Description": "OPENAI *CHATGPT SUBSCR", "Category": "🏠 Home & Utilities", "Currency": "USD", "Amount": 21.80},
-    {"Description": "Orange Mobile", "Category": "🏠 Home & Utilities", "Currency": "EUR", "Amount": 39.99},
-])
-recur_df = pd.concat([recur_df, manual], ignore_index=True)
+
 # categorize recurring items
 recur_df = categorize_transactions(recur_df)
 # convert to display currency
